@@ -1,0 +1,7 @@
+{
+  "id": "LC-02", "name": "메뚜기 다리 6", "socket": "LC", "size": "M", "weight": 20, "cost": 3,
+  "tags": { "motif": "곤충", "trait": ["도약"] },
+  "locomotion": { "legs": 6, "spdMul": 1.0, "jumpMul": 1.8, "leapCost": 10 },
+  "drawback": { "armMul": 0.85 },
+  "model": "Prefabs/Parts/box_lc_locust"
+}

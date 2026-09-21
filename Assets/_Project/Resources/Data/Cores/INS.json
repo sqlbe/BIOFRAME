@@ -1,0 +1,18 @@
+{
+  "id": "INS", "name": "곤충형", "size": "M", "selfWeight": 60,
+  "base": { "hp": 900, "load": 130, "en": 100, "enRegen": 8, "spd": 7.0, "agi": 1.0,
+            "arm": { "front": 20, "side": 15, "rear": 10, "top": 15 } },
+  "thrustFactor": 1.0,
+  "sockets": [
+    { "node": "mount_HD_0", "type": "HD" },
+    { "node": "mount_FL_L", "type": "FL", "mirror": "mount_FL_R" },
+    { "node": "mount_DS_0", "type": "DS" },
+    { "node": "mount_DS_1", "type": "DS" },
+    { "node": "mount_WG_L", "type": "WG", "mirror": "mount_WG_R", "optional": true },
+    { "node": "mount_TL_0", "type": "TL" },
+    { "node": "mount_LC_hip", "type": "LC", "required": true, "recommendLegs": 6 },
+    { "node": "mount_SK_0", "type": "SK" },
+    { "node": "mount_CR_0", "type": "CR" },
+    { "node": "mount_CR_1", "type": "CR" }
+  ]
+}

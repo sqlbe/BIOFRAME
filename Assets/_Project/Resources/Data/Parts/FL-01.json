@@ -1,0 +1,9 @@
+{
+  "id": "FL-01", "name": "사마귀 낫", "socket": "FL", "size": "M", "weight": 18, "cost": 3,
+  "tags": { "motif": "곤충", "trait": ["절단"] },
+  "ability": { "action": "SWING", "damage": 45, "type": "slash", "combo": 3,
+               "cooldown": 0.8, "range": 3.0, "en": 0 },
+  "drawback": { "canBlock": false },
+  "mutations": [ { "up": "damage*1.15", "down": "weight*1.10" } ],
+  "model": "Prefabs/Parts/box_fl_scythe"
+}

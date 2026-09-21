@@ -1,0 +1,9 @@
+{
+  "id": "FL-03", "name": "게 집게", "socket": "FL", "size": "L", "weight": 28, "cost": 3,
+  "tags": { "motif": "갑각류", "trait": ["잡기", "장갑"] },
+  "ability": { "action": "GRAB", "damage": 40, "type": "blunt", "grabSeconds": 2.0,
+               "cooldown": 1.5, "range": 2.5, "en": 0,
+               "block": { "front": 0.60 } },
+  "drawback": { "attackSpeedMul": 0.75 },
+  "model": "Prefabs/Parts/box_fl_claw"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "QUA", "name": "사족형", "size": "L", "selfWeight": 80,
+  "base": { "hp": 1100, "load": 150, "en": 90, "enRegen": 7, "spd": 8.5, "agi": 0.9,
+            "arm": { "front": 22, "side": 16, "rear": 10, "top": 14 } },
+  "thrustFactor": 1.0,
+  "sockets": [
+    { "node": "mount_HD_0", "type": "HD" },
+    { "node": "mount_DS_0", "type": "DS" },
+    { "node": "mount_DS_1", "type": "DS" },
+    { "node": "mount_DS_2", "type": "DS" },
+    { "node": "mount_TL_0", "type": "TL" },
+    { "node": "mount_LC_hip", "type": "LC", "required": true, "recommendLegs": 4 },
+    { "node": "mount_SK_0", "type": "SK" },
+    { "node": "mount_CR_0", "type": "CR" },
+    { "node": "mount_CR_1", "type": "CR" }
+  ]
+}
