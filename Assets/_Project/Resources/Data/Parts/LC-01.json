@@ -1,7 +1,7 @@
 {
   "id": "LC-01", "name": "거미 다리 8", "socket": "LC", "size": "M", "weight": 26, "cost": 3,
   "tags": { "motif": "거미류", "trait": ["벽이동"] },
-  "locomotion": { "legs": 8, "spdMul": 1.0, "jumpMul": 1.0, "wallClimb": true, "ceiling": true },
+  "locomotion": { "legs": 8, "spdMul": 0.57, "jumpMul": 1.0, "wallClimb": true, "ceiling": true },
   "drawback": { "knockbackResist": -0.30 },
   "model": "Prefabs/Parts/box_lc_spider"
 }

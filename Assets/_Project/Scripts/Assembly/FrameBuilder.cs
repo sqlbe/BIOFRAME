@@ -35,9 +35,24 @@ namespace Bioframe.Assembly
                 string node = flIndex == 0 ? "mount_FL_L" : "mount_FL_R";
                 var socket = visual.GetSocket(node);
                 if (socket == null) continue;
-                AttachBoxPart(p, socket, flIndex == 0 ? -1f : 1f);
+                var attached = AttachBoxPart(p, socket, flIndex == 0 ? -1f : 1f);
+                visual.attachedParts[node] = attached.transform;
                 flIndex++;
                 if (flIndex > 1) break;
+            }
+
+            // 머리 파츠
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var hp = parts[i];
+                if (hp == null || hp.socket != "HD") continue;
+                var hs = visual.GetSocket("mount_HD_0");
+                if (hs == null) break;
+                float hscale = 0.8f + 0.2f * SizeGrade.Of(hp.size);
+                var hgo = MakeBox(hs, hp.id, new Vector3(0f, 0f, 0.2f),
+                                  new Vector3(0.3f, 0.26f, 0.5f) * hscale, PartColor);
+                visual.attachedParts["mount_HD_0"] = hgo.transform;
+                break;
             }
 
             var motor = root.AddComponent<SurfaceMotor>();
@@ -82,12 +97,13 @@ namespace Bioframe.Assembly
             AddSocket(v, body, "mount_TL_0", new Vector3(0f, v.bodyHeight, -1.3f));
         }
 
-        static void AttachBoxPart(PartData part, Transform socket, float sideSign)
+        static GameObject AttachBoxPart(PartData part, Transform socket, float sideSign)
         {
             float scale = 0.8f + 0.25f * SizeGrade.Of(part.size);
             var go = MakeBox(socket, part.id, new Vector3(sideSign * 0.15f, 0f, 0.35f),
                              new Vector3(0.22f, 0.22f, 0.9f) * scale, PartColor);
             go.transform.localRotation = Quaternion.Euler(-20f, sideSign * 8f, 0f);
+            return go;
         }
 
         static void AddSocket(FrameVisual v, Transform parent, string node, Vector3 localPos)

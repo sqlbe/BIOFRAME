@@ -1,5 +1,6 @@
 using UnityEngine;
 using Bioframe.Rules;
+using Bioframe.Combat;
 
 namespace Bioframe.Movement
 {
@@ -22,6 +23,7 @@ namespace Bioframe.Movement
         public float arriveDistance = 0.7f;
         public float detachLockTime = 0.25f;
         public Transform cameraPivot;
+        public FrameCombat combat;
 
         SurfaceMotor _motor;
         FrameStats _stats;
@@ -78,12 +80,29 @@ namespace Bioframe.Movement
             Vector3 wish = Vector3.ProjectOnPlane(camFwd * input.y + camRight * input.x, up);
             if (wish.sqrMagnitude > 1f) wish.Normalize();
 
+            // 클릭: 적이면 대상 지정, 바닥이면 이동 목적지
+            // 머리 파츠 조준 중이면 클릭은 전투 쪽이 가져간다
+            bool aiming = combat != null && (combat.AimingHead || combat.AimingAttack || combat.SuppressClicks);
+            if (!aiming && InputReader.ClickPressed) HandleClick(true);
+            else if (!aiming && InputReader.ClickHeld && mode == ControlMode.ClickMove && !HasApproachTarget) HandleClick(false);
+
             if (mode == ControlMode.ClickMove)
             {
-                if (input.sqrMagnitude > 0.01f) ClearDestination();
+                if (input.sqrMagnitude > 0.01f) { ClearDestination(); if (combat != null) combat.ClearTarget(); }
+                else if (HasApproachTarget)
+                {
+                    // 대상 쪽으로 다가가고, 사거리 안에 들면 멈춰서 공격한다
+                    Vector3 toTarget = Vector3.ProjectOnPlane(combat.TargetPosition - transform.position, up);
+                    float dist = toTarget.magnitude;
+                    if (dist > Mathf.Max(1f, combat.AttackRange * 0.8f)) wish = toTarget.normalized;
+                    else
+                    {
+                        wish = Vector3.zero;
+                        if (toTarget.sqrMagnitude > 0.0004f) _motor.Facing = toTarget.normalized;
+                    }
+                }
                 else
                 {
-                    if (InputReader.ClickHeld) PickDestination();
                     if (_hasDestination)
                     {
                         Vector3 to = _destination - transform.position;
@@ -154,6 +173,62 @@ namespace Bioframe.Movement
             }
             else _stuck = 0f;
             _lastPos = transform.position;
+        }
+
+        // 파츠 능력이 EN을 쓰고, 쓰고 나서 잠시 못 움직이게 만들 때 쓴다
+        public bool TrySpendEnergy(float amount)
+        {
+            if (amount <= 0f) return true;
+            if (_en < amount) return false;
+            _en -= amount;
+            return true;
+        }
+
+        // 기술을 쓸 때 대상 쪽으로 몸을 돌린다
+        public void FaceTowards(Vector3 worldPoint)
+        {
+            if (_motor == null) return;
+            _motor.SnapFacing(worldPoint - transform.position);
+        }
+
+        public void ApplyControlLock(float seconds)
+        {
+            if (seconds > _lock) _lock = seconds;
+        }
+
+        public bool HasCombatTarget { get { return combat != null && combat.HasTarget; } }
+        // 다가가서 때릴 대상이 있는지. Q로 지정한 원거리 대상은 여기서 빠진다.
+        public bool HasApproachTarget { get { return HasCombatTarget && combat.AutoApproach; } }
+
+        void HandleClick(bool pressed)
+        {
+            var cam = Camera.main;
+            if (cam == null) return;
+
+            Ray ray = cam.ScreenPointToRay(InputReader.MousePosition);
+            var hits = Physics.RaycastAll(ray, 250f, ~0, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            RaycastHit chosen = new RaycastHit();
+            bool found = false;
+
+            for (int i = 0; i < hits.Length; i++)
+            {
+                if (hits[i].transform.IsChildOf(transform)) continue;
+                if (hits[i].distance < best) { best = hits[i].distance; chosen = hits[i]; found = true; }
+            }
+            if (!found) return;
+
+            // 적을 그냥 클릭하면 아무 일도 하지 않는다.
+            // 공격하려면 A를 누른 뒤 클릭, 머리 파츠는 Q를 누른 뒤 클릭한다.
+            var dmg = chosen.transform.GetComponentInParent<Damageable>();
+            if (dmg != null && dmg.Alive) return;
+
+            if (pressed && combat != null) combat.ClearTarget();
+            if (mode != ControlMode.ClickMove) return;
+
+            _destination = chosen.point + chosen.normal * 0.3f;
+            _hasDestination = true;
+            ShowMarker(true, chosen.normal);
         }
 
         void PickDestination()

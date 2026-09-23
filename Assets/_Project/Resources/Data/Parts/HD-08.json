@@ -1,0 +1,9 @@
+{
+  "id": "HD-08", "name": "치타 송곳니", "socket": "HD", "size": "M", "weight": 12, "cost": 4,
+  "tags": { "motif": "포유류", "trait": ["잡기", "돌진"] },
+  "ability": { "action": "POUNCE", "damage": 90, "type": "pierce", "combo": 1,
+               "cooldown": 8.0, "range": 9.0, "en": 20,
+               "rootSeconds": 3.0, "requiresSprint": true },
+  "drawback": {},
+  "model": "Prefabs/Parts/box_hd_fang"
+}

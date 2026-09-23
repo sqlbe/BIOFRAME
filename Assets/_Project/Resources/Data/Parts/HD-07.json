@@ -1,0 +1,10 @@
+{
+  "id": "HD-07", "name": "메뚜기 큰턱", "socket": "HD", "size": "M", "weight": 14, "cost": 3,
+  "tags": { "motif": "곤충", "trait": ["절단"] },
+  "ability": { "action": "GNAW", "damage": 15, "type": "slash", "combo": 1,
+               "cooldown": 4.0, "range": 1.8, "en": 6,
+               "dotDps": 12.0, "dotDuration": 3.0,
+               "armorShred": 0.15, "armorShredDuration": 5.0 },
+  "drawback": {},
+  "model": "Prefabs/Parts/box_hd_mandible"
+}

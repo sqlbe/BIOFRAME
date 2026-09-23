@@ -65,6 +65,34 @@ namespace Bioframe.Movement
             }
         }
 
+        // Q: 머리 파츠 사용
+        // A: 공격 대상 지정 (누른 뒤 대상을 클릭)
+        public static bool AttackKeyPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.aKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.A);
+#endif
+            }
+        }
+
+        public static bool HeadPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.qKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.Q);
+#endif
+            }
+        }
+
         public static bool JumpPressed
         {
             get
@@ -89,12 +117,18 @@ namespace Bioframe.Movement
                 if (k.digit1Key.wasPressedThisFrame) return 1;
                 if (k.digit2Key.wasPressedThisFrame) return 2;
                 if (k.digit3Key.wasPressedThisFrame) return 3;
+                if (k.digit4Key.wasPressedThisFrame) return 4;
+                if (k.digit5Key.wasPressedThisFrame) return 5;
+                if (k.digit6Key.wasPressedThisFrame) return 6;
                 if (k.digit9Key.wasPressedThisFrame) return 9;
                 return 0;
 #else
                 if (Input.GetKeyDown(KeyCode.Alpha1)) return 1;
                 if (Input.GetKeyDown(KeyCode.Alpha2)) return 2;
                 if (Input.GetKeyDown(KeyCode.Alpha3)) return 3;
+                if (Input.GetKeyDown(KeyCode.Alpha4)) return 4;
+                if (Input.GetKeyDown(KeyCode.Alpha5)) return 5;
+                if (Input.GetKeyDown(KeyCode.Alpha6)) return 6;
                 if (Input.GetKeyDown(KeyCode.Alpha9)) return 9;
                 return 0;
 #endif

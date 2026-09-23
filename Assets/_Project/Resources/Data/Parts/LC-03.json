@@ -1,7 +1,7 @@
 {
   "id": "LC-03", "name": "치타 다리 4", "socket": "LC", "size": "M", "weight": 22, "cost": 3,
   "tags": { "motif": "포유류", "trait": ["질주"] },
-  "locomotion": { "legs": 4, "spdMul": 1.0, "jumpMul": 0.9, "sprintMul": 1.5, "sprintUpkeep": 3 },
+  "locomotion": { "legs": 4, "spdMul": 2.0, "jumpMul": 2.5, "sprintMul": 1.25, "sprintUpkeep": 5 },
   "drawback": { "turnMulWhileSprint": 0.60 },
   "model": "Prefabs/Parts/box_lc_cheetah"
 }

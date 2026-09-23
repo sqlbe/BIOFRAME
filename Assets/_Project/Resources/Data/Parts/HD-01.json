@@ -1,0 +1,9 @@
+{
+  "id": "HD-01", "name": "사슴벌레 집게턱", "socket": "HD", "size": "M", "weight": 22, "cost": 3,
+  "tags": { "motif": "곤충", "trait": ["잡기"] },
+  "ability": { "action": "GRAB", "damage": 20, "type": "blunt", "combo": 1,
+               "cooldown": 6.0, "range": 2.5, "en": 8,
+               "rootSeconds": 3.0, "dotDps": 10.0, "dotDuration": 3.0 },
+  "drawback": { "turnMulWhileSprint": 0.7 },
+  "model": "Prefabs/Parts/box_hd_mandible_stag"
+}

@@ -89,6 +89,12 @@ namespace Bioframe.Rules
     {
         public string action, type;
         public float damage, cooldown, range, en, grabSeconds;
+        public float armorIgnore;            // 0~1. 갯가재 곤봉처럼 장갑을 무시하는 파츠
+        public float rootSeconds;            // 대상을 묶어두는 시간
+        public float selfRootSeconds;        // 쓰고 나서 내가 못 움직이는 시간
+        public float dotDps, dotDuration;    // 지속 피해
+        public float armorShred, armorShredDuration;   // 상대 장갑 깎기
+        public bool requiresSprint;          // 질주 중에만 사용 가능(치타 송곳니)
         public int combo = 1;
         public BlockData block;
     }

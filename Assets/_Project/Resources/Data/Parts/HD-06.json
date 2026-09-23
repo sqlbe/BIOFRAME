@@ -1,0 +1,9 @@
+{
+  "id": "HD-06", "name": "거미 방적돌기", "socket": "HD", "size": "S", "weight": 10, "cost": 3,
+  "tags": { "motif": "거미류", "trait": ["원거리", "잡기"] },
+  "ability": { "action": "WEB", "damage": 10, "type": "pierce", "combo": 1,
+               "cooldown": 7.0, "range": 12.0, "en": 14,
+               "rootSeconds": 2.0, "selfRootSeconds": 1.5 },
+  "drawback": {},
+  "model": "Prefabs/Parts/box_hd_spinneret"
+}

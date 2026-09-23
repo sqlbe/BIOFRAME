@@ -3,6 +3,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using Bioframe.Assembly;
 using Bioframe.Movement;
+using Bioframe.Combat;
 
 namespace Bioframe.EditorTools
 {
@@ -86,6 +87,11 @@ namespace Bioframe.EditorTools
 
             BuildHall(new Vector3(18f, 0f, -14f));
 
+            // 허수아비: 하나는 고정, 하나는 천천히 돌아 방향별 장갑 차이를 보여준다
+            MakeDummy("허수아비 A", new Vector3(4f, 0f, -3f), Quaternion.Euler(0f, 180f, 0f), false);
+            MakeDummy("허수아비 B (회전)", new Vector3(-3f, 0f, -4f), Quaternion.identity, true);
+            MakeDummy("허수아비 C (건물 안)", new Vector3(20f, 0f, -12f), Quaternion.Euler(0f, 90f, 0f), false);
+
             var camGo = Camera.main != null ? Camera.main.gameObject : new GameObject("Main Camera", typeof(Camera));
             camGo.name = "Main Camera";
             camGo.tag = "MainCamera";
@@ -122,6 +128,17 @@ namespace Bioframe.EditorTools
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.Refresh();
             Debug.Log("[BIOFRAME] M1 테스트 씬을 만들었다: " + ScenePath + "  (Play 버튼을 누르면 조작할 수 있다)");
+        }
+
+        static void MakeDummy(string name, Vector3 pos, Quaternion rot, bool rotate)
+        {
+            var go = new GameObject(name);
+            go.transform.position = pos;
+            go.transform.rotation = rot;
+            var dmg = go.AddComponent<Damageable>();
+            dmg.displayName = name;
+            var dummy = go.AddComponent<TrainingDummy>();
+            dummy.rotateSlowly = rotate;
         }
 
         // 기둥 4개 + 천장 + 벽 2면으로 된 건물. 천장 이동과 실내 전투를 시험한다.

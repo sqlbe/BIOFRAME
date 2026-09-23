@@ -12,6 +12,13 @@ namespace Bioframe.Assembly
         public float bodyLength = 1.8f;
         public float hipSpread = 0.55f;
         public readonly Dictionary<string, Transform> sockets = new Dictionary<string, Transform>();
+        public readonly Dictionary<string, Transform> attachedParts = new Dictionary<string, Transform>();
+
+        public Transform GetAttachedPart(string node)
+        {
+            Transform t;
+            return attachedParts.TryGetValue(node, out t) ? t : null;
+        }
 
         public Transform GetSocket(string node)
         {
