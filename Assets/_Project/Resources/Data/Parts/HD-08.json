@@ -5,5 +5,6 @@
                "cooldown": 8.0, "range": 9.0, "en": 20,
                "rootSeconds": 3.0, "requiresSprint": true },
   "drawback": {},
+  "color": "#D2452F",
   "model": "Prefabs/Parts/box_hd_fang"
 }

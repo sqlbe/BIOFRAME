@@ -2,6 +2,7 @@
   "id": "QUA", "name": "사족형", "size": "L", "selfWeight": 80,
   "base": { "hp": 1100, "load": 150, "en": 90, "enRegen": 7, "spd": 8.5, "agi": 0.9,
             "arm": { "front": 22, "side": 16, "rear": 10, "top": 14 } },
+  "color": "#4F6E2E",
   "thrustFactor": 1.0,
   "sockets": [
     { "node": "mount_HD_0", "type": "HD" },

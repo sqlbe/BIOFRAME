@@ -27,6 +27,7 @@ namespace Bioframe.Movement
         public float stickAccel = 30f;          // 표면 쪽으로 눌러 붙이는 힘
         public float alignSpeed = 12f;          // 몸이 표면 기울기를 따라가는 속도
         public LayerMask mask = ~0;
+        public float fallLimit = -25f;      // 이 높이 아래로 떨어지면 마지막 안전 지점으로 되돌린다
 
         [Header("파츠 능력")]
         public bool canWallClimb;
@@ -38,10 +39,12 @@ namespace Bioframe.Movement
         public bool Attached { get { return State == SurfaceState.Wall || State == SurfaceState.Ceiling; } }
         public bool Grounded { get { return State != SurfaceState.Air; } }
         public Vector3 Facing { get; set; }
+        public float FallSpeed { get { return _fallSpeed; } }
 
         float _fallSpeed;           // -Up 방향 속도
         float _airTime;
         float _detachTimer;         // 이 시간 동안은 표면에 다시 붙지 않는다
+        Vector3 _lastSafe;          // 마지막으로 땅을 딛고 있던 위치
         SphereCollider _shape;      // 겹침 밀어내기 계산용
         Vector3 _pendingNormal;
         bool _hasPending;
@@ -80,6 +83,34 @@ namespace Bioframe.Movement
             _detachTimer = 0.4f;
         }
 
+        // 맞았을 때 살짝 밀려난다. 벽을 뚫지 않도록 먼저 부딪히는지 확인한다.
+        public void Nudge(Vector3 worldDir, float distance)
+        {
+            Vector3 d = Vector3.ProjectOnPlane(worldDir, Up);
+            if (d.sqrMagnitude < 0.0001f) return;
+            d.Normalize();
+
+            Vector3 center = transform.position + Up * (height * 0.5f);
+            RaycastHit hit;
+            if (SphereCastIgnoringSelf(center, d, distance + skin, out hit))
+                distance = Mathf.Max(0f, hit.distance - skin);
+
+            transform.position += d * distance;
+        }
+
+        // 지형 밖으로 떨어졌을 때 마지막 안전 지점으로 되돌린다
+        public bool RecoverIfFallen()
+        {
+            if (transform.position.y > fallLimit) return false;
+            transform.position = _lastSafe + Vector3.up * 1f;
+            Up = Vector3.up;
+            SurfaceNormal = Vector3.up;
+            State = SurfaceState.Air;
+            _fallSpeed = 0f;
+            _detachTimer = 0f;
+            return true;
+        }
+
         public void Jump(float speed)
         {
             if (!Grounded) return;
@@ -103,6 +134,8 @@ namespace Bioframe.Movement
         public void Move(Vector3 planarVelocity, float dt)
         {
             if (dt <= 0f) return;
+            if (RecoverIfFallen()) return;
+            if (_lastSafe == Vector3.zero) _lastSafe = transform.position;
 
             Vector3 up = Up;
             planarVelocity = Vector3.ProjectOnPlane(planarVelocity, up);
@@ -133,6 +166,7 @@ namespace Bioframe.Movement
             {
                 _airTime = 0f;
                 SurfaceNormal = hit.normal;
+                if (Vector3.Angle(hit.normal, Vector3.up) <= maxGroundAngle) _lastSafe = transform.position;
                 float angle = Vector3.Angle(hit.normal, Vector3.up);
                 if (angle <= maxGroundAngle) State = SurfaceState.Ground;
                 else if (angle < 120f) State = SurfaceState.Wall;

@@ -3,5 +3,6 @@
   "tags": { "motif": "곤충", "trait": ["도약"] },
   "locomotion": { "legs": 6, "spdMul": 1.0, "jumpMul": 4.375, "leapCost": 10 },
   "drawback": { "armMul": 0.85 },
+  "color": "#7FB23C",
   "model": "Prefabs/Parts/box_lc_locust"
 }

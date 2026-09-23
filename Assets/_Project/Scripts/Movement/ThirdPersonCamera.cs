@@ -35,6 +35,7 @@ namespace Bioframe.Movement
         public float zoomSmooth = 12f;
 
         float _yaw, _pitch = 52f;
+        float _shakeAmp, _shakeTime, _shakeDuration;
         float _dist, _topDist;
         bool _distInit;
 
@@ -48,6 +49,15 @@ namespace Bioframe.Movement
             _dist = distance;
             _topDist = topDownDistance;
             _distInit = true;
+        }
+
+        // 큰 타격이나 피격 때 화면을 짧게 흔든다
+        public void Shake(float amplitude, float duration)
+        {
+            if (amplitude <= _shakeAmp && _shakeTime > 0f) return;
+            _shakeAmp = amplitude;
+            _shakeDuration = duration;
+            _shakeTime = duration;
         }
 
         public void SetMode(CameraMode m)
@@ -114,6 +124,15 @@ namespace Bioframe.Movement
 
             transform.position = Vector3.Lerp(transform.position, wanted, 1f - Mathf.Exp(-followSpeed * dt));
             transform.rotation = Quaternion.LookRotation(focus - transform.position);
+
+            if (_shakeTime > 0f)
+            {
+                _shakeTime -= dt;
+                float shakeK = Mathf.Clamp01(_shakeTime / Mathf.Max(0.01f, _shakeDuration));
+                transform.position += (transform.right * Random.Range(-1f, 1f) + transform.up * Random.Range(-1f, 1f))
+                                      * (_shakeAmp * shakeK);
+                if (_shakeTime <= 0f) _shakeAmp = 0f;
+            }
         }
     }
 }

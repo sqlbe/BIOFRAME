@@ -5,5 +5,6 @@
                "cooldown": 6.0, "range": 2.5, "en": 8,
                "rootSeconds": 3.0, "dotDps": 10.0, "dotDuration": 3.0 },
   "drawback": { "turnMulWhileSprint": 0.7 },
+  "color": "#8A5A2B",
   "model": "Prefabs/Parts/box_hd_mandible_stag"
 }

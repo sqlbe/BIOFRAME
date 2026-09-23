@@ -9,12 +9,43 @@ namespace Bioframe.Assembly
     // 실사 모델 단계(M4)에서는 박스 대신 glb 프리팹을 소켓에 붙이도록 바꾸면 된다.
     public static class FrameBuilder
     {
-        static readonly Color CoreColor = new Color(0.16f, 0.42f, 0.39f);
-        static readonly Color HeadColor = new Color(0.10f, 0.32f, 0.30f);
-        static readonly Color PartColor = new Color(0.82f, 0.46f, 0.08f);
+        static readonly Color CoreColorAlly = new Color(0.16f, 0.42f, 0.39f);
+        static readonly Color HeadColorAlly = new Color(0.10f, 0.32f, 0.30f);
+        static readonly Color PartColorAlly = new Color(0.82f, 0.46f, 0.08f);
 
-        public static GameObject Build(CoreData core, List<PartData> parts, Vector3 position)
+        static readonly Color CoreColorEnemy = new Color(0.52f, 0.16f, 0.16f);
+        static readonly Color HeadColorEnemy = new Color(0.38f, 0.10f, 0.10f);
+        static readonly Color PartColorEnemy = new Color(0.30f, 0.30f, 0.34f);
+
+        // 현재 조립 중인 개체의 색. 적은 붉은 계열로 만든다.
+        static bool _enemy;
+        static Color CoreColor = CoreColorAlly;
+        static Color HeadColor = HeadColorAlly;
+        static Color PartColor = PartColorAlly;
+
+        // "#RRGGBB" 문자열을 색으로. 값이 없으면 기본색을 쓴다.
+        public static Color ColorOf(string hex, Color fallback)
         {
+            float r, g, b;
+            if (!HexColor.TryParse(hex, out r, out g, out b)) return fallback;
+            return new Color(r, g, b);
+        }
+
+        // 적은 같은 색을 붉게 물들여 아군과 구분한다
+        public static Color Enemify(Color c)
+        {
+            return Color.Lerp(c, new Color(0.62f, 0.14f, 0.12f), 0.55f);
+        }
+
+        public static GameObject Build(CoreData core, List<PartData> parts, Vector3 position, bool enemy = false)
+        {
+            Color coreBase = ColorOf(core.color, enemy ? CoreColorEnemy : CoreColorAlly);
+            if (enemy) coreBase = Enemify(coreBase);
+            CoreColor = coreBase;
+            HeadColor = Color.Lerp(coreBase, Color.black, 0.25f);
+            PartColor = enemy ? PartColorEnemy : PartColorAlly;
+            _enemy = enemy;
+
             var root = new GameObject("Frame_" + core.id);
             root.transform.position = position;
 
@@ -35,7 +66,7 @@ namespace Bioframe.Assembly
                 string node = flIndex == 0 ? "mount_FL_L" : "mount_FL_R";
                 var socket = visual.GetSocket(node);
                 if (socket == null) continue;
-                var attached = AttachBoxPart(p, socket, flIndex == 0 ? -1f : 1f);
+                var attached = AttachBoxPart(p, socket, flIndex == 0 ? -1f : 1f, PartColorOf(p));
                 visual.attachedParts[node] = attached.transform;
                 flIndex++;
                 if (flIndex > 1) break;
@@ -50,7 +81,7 @@ namespace Bioframe.Assembly
                 if (hs == null) break;
                 float hscale = 0.8f + 0.2f * SizeGrade.Of(hp.size);
                 var hgo = MakeBox(hs, hp.id, new Vector3(0f, 0f, 0.2f),
-                                  new Vector3(0.3f, 0.26f, 0.5f) * hscale, PartColor);
+                                  new Vector3(0.3f, 0.26f, 0.5f) * hscale, PartColorOf(hp));
                 visual.attachedParts["mount_HD_0"] = hgo.transform;
                 break;
             }
@@ -97,11 +128,17 @@ namespace Bioframe.Assembly
             AddSocket(v, body, "mount_TL_0", new Vector3(0f, v.bodyHeight, -1.3f));
         }
 
-        static GameObject AttachBoxPart(PartData part, Transform socket, float sideSign)
+        public static Color PartColorOf(PartData p)
+        {
+            Color c = ColorOf(p.color, PartColorAlly);
+            return _enemy ? Enemify(c) : c;
+        }
+
+        static GameObject AttachBoxPart(PartData part, Transform socket, float sideSign, Color color)
         {
             float scale = 0.8f + 0.25f * SizeGrade.Of(part.size);
             var go = MakeBox(socket, part.id, new Vector3(sideSign * 0.15f, 0f, 0.35f),
-                             new Vector3(0.22f, 0.22f, 0.9f) * scale, PartColor);
+                             new Vector3(0.22f, 0.22f, 0.9f) * scale, color);
             go.transform.localRotation = Quaternion.Euler(-20f, sideSign * 8f, 0f);
             return go;
         }

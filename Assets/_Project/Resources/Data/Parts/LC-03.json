@@ -3,5 +3,6 @@
   "tags": { "motif": "포유류", "trait": ["질주"] },
   "locomotion": { "legs": 4, "spdMul": 2.0, "jumpMul": 2.5, "sprintMul": 1.25, "sprintUpkeep": 5 },
   "drawback": { "turnMulWhileSprint": 0.60 },
+  "color": "#D2822A",
   "model": "Prefabs/Parts/box_lc_cheetah"
 }

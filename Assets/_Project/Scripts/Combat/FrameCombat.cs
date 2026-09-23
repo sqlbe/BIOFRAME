@@ -19,9 +19,11 @@ namespace Bioframe.Combat
             public int comboIndex;
             public float comboWindow;
             public float swing;             // 0~1 동작 진행도
+            public TrailRenderer trail;     // 휘두를 때 남는 잔상
         }
 
         readonly List<Weapon> _weapons = new List<Weapon>();
+        Damageable _self;
         Weapon _head;               // 머리 파츠 (Q 키)
         FrameStats _stats;
         FrameController _controller;
@@ -51,6 +53,7 @@ namespace Bioframe.Combat
 
         public void Init(List<PartData> parts, FrameVisual visual, FrameStats stats, FrameController controller)
         {
+            _self = GetComponent<Damageable>();
             _stats = stats;
             _controller = controller;
             _weapons.Clear();
@@ -77,11 +80,39 @@ namespace Bioframe.Combat
                 var w = new Weapon();
                 w.part = p;
                 w.visual = visual != null ? visual.GetAttachedPart(index == 0 ? "mount_FL_L" : "mount_FL_R") : null;
-                if (w.visual != null) w.restRotation = w.visual.localRotation;
+                if (w.visual != null)
+                {
+                    w.restRotation = w.visual.localRotation;
+                    w.trail = MakeTrail(w.visual, TrailColorFor(p));
+                }
                 _weapons.Add(w);
                 AttackRange = Mathf.Max(AttackRange, p.ability.range);
                 index++;
             }
+        }
+
+        // 파츠 성격에 따라 궤적 색을 고른다. 나중에 파츠 데이터로 옮기면 된다.
+        static Color TrailColorFor(PartData p)
+        {
+            // 파츠 데이터의 색을 그대로 쓰되, 궤적은 조금 더 밝게 한다
+            Color c = FrameBuilder.ColorOf(p.color, new Color(0.75f, 0.95f, 0.9f));
+            return Color.Lerp(c, Color.white, 0.35f);
+        }
+
+        static TrailRenderer MakeTrail(Transform on, Color color)
+        {
+            var go = new GameObject("Trail");
+            go.transform.SetParent(on, false);
+            go.transform.localPosition = new Vector3(0f, 0f, 0.5f);   // 무기 끝
+            var tr = go.AddComponent<TrailRenderer>();
+            tr.time = 0.18f;
+            tr.startWidth = 0.22f;
+            tr.endWidth = 0.02f;
+            tr.minVertexDistance = 0.02f;
+            tr.sharedMaterial = Fx.UnlitMaterial(color);
+            tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            tr.emitting = false;
+            return tr;
         }
 
         public void SetTarget(Damageable d) { SetTarget(d, true); }
@@ -106,7 +137,26 @@ namespace Bioframe.Combat
             if (_dashTime > 0f)
             {
                 _dashTime -= dt;
-                transform.position = Vector3.MoveTowards(transform.position, _dashTo, 26f * dt);
+                Vector3 next = Vector3.MoveTowards(transform.position, _dashTo, 26f * dt);
+                Vector3 delta = next - transform.position;
+                RaycastHit blocked;
+                // 지형을 뚫고 지나가지 않게 확인한다
+                if (delta.sqrMagnitude > 0.0001f &&
+                    Physics.SphereCast(transform.position + Vector3.up * 0.7f, 0.45f, delta.normalized,
+                                       out blocked, delta.magnitude + 0.1f, ~0, QueryTriggerInteraction.Ignore)
+                    && !blocked.transform.IsChildOf(transform)
+                    && (Target == null || !blocked.transform.IsChildOf(Target.transform)))
+                {
+                    _dashTime = 0f;
+                }
+                else transform.position = next;
+
+                if (_dashTime <= 0f)
+                {
+                    // 착지 충격파
+                    Fx.Ring(transform.position + Vector3.up * 0.1f, Vector3.up, new Color(0.95f, 0.75f, 0.4f), 2.6f, 0.28f);
+                    Fx.Dust(transform.position, transform.forward, new Color(0.86f, 0.82f, 0.72f), 8, 2.8f);
+                }
             }
 
             if (_head != null)
@@ -152,8 +202,16 @@ namespace Bioframe.Combat
                     var picked = PickDamageableUnderCursor();
                     _aim = 0f;
                     _blockClick = true;
+
                     if (picked != null) { SetTarget(picked, false); UseHead(); }
-                    else LastLog = "대상이 아니다. 취소";
+                    else
+                    {
+                        // 빈 곳을 찍어도 그 방향으로 쏜다. 빗나가면 그냥 빗나간다.
+                        Vector3 point;
+                        if (_head != null && _head.part.ability.projectileSpeed > 0f && PickPointUnderCursor(out point))
+                            UseHeadAt(point);
+                        else LastLog = "대상이 아니다. 취소";
+                    }
                 }
                 else if (_aim <= 0f) LastLog = "조준 시간 초과";
             }
@@ -174,10 +232,16 @@ namespace Bioframe.Combat
                     w.swing = Mathf.Max(0f, w.swing - dt / 0.18f);
                     float k = Mathf.Sin((1f - w.swing) * Mathf.PI);
                     w.visual.localRotation = w.restRotation * Quaternion.Euler(-70f * k, 0f, 0f);
+                    if (w.trail != null) w.trail.emitting = true;
                 }
+                else if (w.trail != null && w.trail.emitting) w.trail.emitting = false;
             }
 
             if (!HasTarget) { Target = null; return; }
+
+            // 속박당하면 움직이지도 때리지도 못한다
+            if (_self == null) _self = GetComponent<Damageable>();
+            if (_self != null && _self.Rooted) return;
 
             Vector3 to = Target.transform.position - transform.position;
             float dist = to.magnitude;
@@ -198,6 +262,7 @@ namespace Bioframe.Combat
 
         void BeginHeadAim()
         {
+            if (_self != null && _self.Rooted) { LastLog = "속박 중 — 아무것도 못 한다"; return; }
             if (_head == null) { LastLog = "머리 파츠가 없다"; return; }
 
             // 대기 중이어도 조준은 열어 둔다. 그래야 클릭이 이동으로 새지 않는다.
@@ -205,6 +270,67 @@ namespace Bioframe.Combat
             LastLog = _head.cooldown > 0f
                 ? _head.part.name + " 대기 " + _head.cooldown.ToString("0.0") + "초 — 아직 못 쏜다"
                 : _head.part.name + " 조준 중 — 대상을 클릭";
+        }
+
+        bool PickPointUnderCursor(out Vector3 point)
+        {
+            point = Vector3.zero;
+            var cam = Camera.main;
+            if (cam == null) return false;
+
+            Ray ray = cam.ScreenPointToRay(InputReader.MousePosition);
+            var hits = Physics.RaycastAll(ray, 250f, ~0, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            bool found = false;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                if (hits[i].transform.IsChildOf(transform)) continue;
+                if (hits[i].distance < best) { best = hits[i].distance; point = hits[i].point + Vector3.up * 1.0f; found = true; }
+            }
+            return found;
+        }
+
+        // 대상 없이 한 지점을 향해 쏜다
+        void UseHeadAt(Vector3 point)
+        {
+            if (_head == null) return;
+            var a = _head.part.ability;
+
+            if (_head.cooldown > 0f) { LastLog = _head.part.name + " 대기 " + _head.cooldown.ToString("0.0") + "초"; return; }
+            if (_self != null && _self.Rooted) { LastLog = "속박 중"; return; }
+            if (a.requiresSprint && (_controller == null || !_controller.Sprinting))
+            { LastLog = _head.part.name + "은 질주 중에만"; return; }
+            if (_controller != null && !_controller.TrySpendEnergy(a.en))
+            { LastLog = "EN 부족 (" + a.en.ToString("0") + " 필요)"; return; }
+
+            // 사거리보다 멀리 찍으면 사거리 끝까지만 날아간다
+            Vector3 origin = transform.position + transform.up * 0.9f;
+            Vector3 dir = point - origin;
+            if (dir.magnitude > a.range) point = origin + dir.normalized * a.range;
+
+            if (_controller != null) _controller.FaceTowards(point);
+
+            _head.swing = 1f;
+            _head.cooldown = a.cooldown;
+            if (a.selfRootSeconds > 0f && _controller != null) _controller.ApplyControlLock(a.selfRootSeconds);
+
+            string partName = _head.part.name;
+            Vector3 muzzle = origin + (point - origin).normalized * 0.8f;
+            Projectile.Spawn(transform, muzzle, point, a.projectileSpeed, 1.4f,
+                             new Color(0.95f, 0.95f, 0.98f), 0.07f,
+                             (hitTarget, result) =>
+                             {
+                                 if (result != Projectile.Result.Hit || hitTarget == null)
+                                 {
+                                     LastLog = partName + (result == Projectile.Result.Blocked ? " 막힘" : " 빗나감");
+                                     return;
+                                 }
+                                 float d = hitTarget.ApplyDamage(a.damage, transform.position, Mathf.Clamp01(a.armorIgnore));
+                                 hitTarget.ApplyStatus(transform.position, a.rootSeconds, a.dotDps, a.dotDuration,
+                                                       a.armorShred, a.armorShredDuration);
+                                 LastLog = partName + " 명중 → " + d.ToString("0") + " 피해";
+                             });
+            LastLog = partName + " 발사";
         }
 
         Damageable PickDamageableUnderCursor()
@@ -226,6 +352,21 @@ namespace Bioframe.Combat
             }
             return found;
         }
+
+        // 봇이 쓰는 진입점. 조건이 안 되면 그냥 아무 일도 안 한다.
+        public bool TryUseHead()
+        {
+            if (_self != null && _self.Rooted) return false;
+            if (_head == null || _head.cooldown > 0f || !HasTarget) return false;
+            var a = _head.part.ability;
+            if (Vector3.Distance(transform.position, Target.transform.position) > a.range) return false;
+            if (a.requiresSprint && (_controller == null || !_controller.Sprinting)) return false;
+            if (_controller != null && _controller.Energy < a.en) return false;
+            UseHead();
+            return true;
+        }
+
+        public float HeadRange { get { return _head != null ? _head.part.ability.range : 0f; } }
 
         // 머리 파츠 발동
         void UseHead()
@@ -262,6 +403,37 @@ namespace Bioframe.Combat
                 if (dir.sqrMagnitude < 0.01f) dir = -transform.forward;
                 _dashTo = Target.transform.position + dir.normalized * 1.6f;
                 _dashTime = 0.25f;
+                Fx.Ring(transform.position + Vector3.up * 0.1f, Vector3.up, new Color(0.95f, 0.6f, 0.3f), 2.2f, 0.3f);
+                Fx.Afterimage(gameObject, new Color(0.95f, 0.55f, 0.25f), 0.3f);
+                Fx.Dust(transform.position, -transform.forward, new Color(0.86f, 0.82f, 0.72f), 6, 2.2f);
+                if (Fx.IsCameraTarget(transform)) Fx.Shake(0.3f, 0.2f);
+            }
+
+            _head.swing = 1f;
+            _head.cooldown = a.cooldown;
+            if (a.selfRootSeconds > 0f && _controller != null) _controller.ApplyControlLock(a.selfRootSeconds);
+
+            if (a.projectileSpeed > 0f)
+            {
+                // 날아가는 발사체. 쏜 순간의 위치로 향하므로 상대가 움직이면 빗나간다.
+                string partName = _head.part.name;
+                Vector3 aimDir = (Target.transform.position + Vector3.up * 1.0f) - (transform.position + transform.up * 0.9f);
+                if (aimDir.sqrMagnitude < 0.001f) aimDir = transform.forward;
+                Vector3 muzzle = transform.position + transform.up * 0.9f + aimDir.normalized * 0.8f;
+                Projectile.Spawn(transform, muzzle, Target, a.projectileSpeed, 1.4f,
+                                 new Color(0.95f, 0.95f, 0.98f), 0.07f,
+                                 (hitTarget, result) =>
+                                 {
+                                     if (result == Projectile.Result.Blocked) { LastLog = partName + " 막힘"; return; }
+                                     if (result == Projectile.Result.Miss || hitTarget == null) { LastLog = partName + " 빗나감"; return; }
+
+                                     float d = hitTarget.ApplyDamage(a.damage, transform.position, Mathf.Clamp01(a.armorIgnore));
+                                     hitTarget.ApplyStatus(transform.position, a.rootSeconds, a.dotDps, a.dotDuration,
+                                                           a.armorShred, a.armorShredDuration);
+                                     LastLog = partName + " 명중 → " + d.ToString("0") + " 피해";
+                                 });
+                LastLog = _head.part.name + " 발사";
+                return;
             }
 
             float dealt = 0f;
@@ -269,10 +441,6 @@ namespace Bioframe.Combat
 
             Target.ApplyStatus(transform.position, a.rootSeconds, a.dotDps, a.dotDuration, a.armorShred, a.armorShredDuration);
 
-            if (a.selfRootSeconds > 0f && _controller != null) _controller.ApplyControlLock(a.selfRootSeconds);
-
-            _head.swing = 1f;
-            _head.cooldown = a.cooldown;
             LastLog = _head.part.name + " " + a.action + (dealt > 0f ? " → " + dealt.ToString("0") + " 피해" : " 사용");
         }
 
@@ -283,6 +451,11 @@ namespace Bioframe.Combat
 
             float dealt = Target.ApplyDamage(a.damage, transform.position, Mathf.Clamp01(a.armorIgnore));
             LastLog = w.part.name + " " + a.action + " → " + dealt.ToString("0") + " 피해";
+
+            Vector3 impact = Vector3.Lerp(transform.position, Target.transform.position, 0.75f) + Vector3.up * 1.1f;
+            Fx.Ring(impact, (transform.position - Target.transform.position).normalized,
+                    TrailColorFor(w.part), 0.9f, 0.22f);
+            if (a.damage >= 80f && Fx.IsCameraTarget(transform)) Fx.Shake(0.22f, 0.16f);
 
             w.swing = 1f;
             w.comboIndex++;

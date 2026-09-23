@@ -25,7 +25,14 @@ namespace Bioframe.Movement
         public Transform cameraPivot;
         public FrameCombat combat;
 
+        // 봇이 조종할 때는 키보드·마우스 대신 아래 값을 채워 넣는다
+        public bool isBot;
+        [HideInInspector] public Vector3 botWish;
+        [HideInInspector] public bool botSprint;
+        [HideInInspector] public bool botJump;
+
         SurfaceMotor _motor;
+        Bioframe.Combat.Damageable _self;
         FrameStats _stats;
         Vector3 _planar;
         Vector3 _destination;
@@ -46,7 +53,21 @@ namespace Bioframe.Movement
         public bool CanCeiling { get { return _motor != null && _motor.canCeiling; } }
         public bool HasDestination { get { return _hasDestination; } }
 
-        void Awake() { _motor = GetComponent<SurfaceMotor>(); }
+        void Awake()
+        {
+            _motor = GetComponent<SurfaceMotor>();
+            _self = GetComponent<Bioframe.Combat.Damageable>();
+        }
+
+        // 속박당하면 이동만 막힌다. 공격은 할 수 있다.
+        bool Rooted
+        {
+            get
+            {
+                if (_self == null) _self = GetComponent<Bioframe.Combat.Damageable>();
+                return _self != null && _self.Rooted;
+            }
+        }
 
         public void Init(FrameStats stats, Transform camPivot)
         {
@@ -71,6 +92,13 @@ namespace Bioframe.Movement
             if (_lock > 0f) _lock -= dt;
 
             Vector3 up = _motor.Up;
+
+            if (isBot)
+            {
+                UpdateAsBot(dt, up);
+                return;
+            }
+
             Vector2 input = InputReader.Move;
             if (input.sqrMagnitude > 1f) input.Normalize();
 
@@ -117,7 +145,7 @@ namespace Bioframe.Movement
                 }
             }
 
-            if (_lock > 0f) wish = Vector3.zero;
+            if (_lock > 0f || Rooted) wish = Vector3.zero;
 
             bool moving = wish.sqrMagnitude > 0.01f;
             bool wantSprint = InputReader.Sprint && moving && !_motor.Attached;
@@ -194,6 +222,36 @@ namespace Bioframe.Movement
         public void ApplyControlLock(float seconds)
         {
             if (seconds > _lock) _lock = seconds;
+        }
+
+        // 봇 조종: 입력 대신 botWish를 따라 움직인다
+        void UpdateAsBot(float dt, Vector3 up)
+        {
+            Vector3 wish = Vector3.ProjectOnPlane(botWish, up);
+            if (wish.sqrMagnitude > 1f) wish.Normalize();
+            if (_lock > 0f || Rooted) wish = Vector3.zero;
+
+            bool moving = wish.sqrMagnitude > 0.01f;
+            _sprinting = botSprint && moving && !_motor.Attached
+                         && (_stats.sprintUpkeep <= 0f || _en > 0.5f);
+            if (_sprinting && _stats.sprintUpkeep > 0f) _en -= _stats.sprintUpkeep * dt;
+            else _en += _stats.enRegen * dt;
+            _en = Mathf.Clamp(_en, 0f, Mathf.Max(1f, _stats.enMax));
+
+            float speed = _sprinting ? _stats.sprintSpeed : _stats.speed;
+            if (_motor.Attached) speed *= WallSpeedMul;
+
+            _planar = Vector3.MoveTowards(_planar, wish * speed, accel * dt);
+            _planar = Vector3.ProjectOnPlane(_planar, up);
+            if (_planar.sqrMagnitude > 0.05f) _motor.Facing = _planar.normalized;
+
+            if (botJump)
+            {
+                botJump = false;
+                _motor.Jump(Mathf.Sqrt(2f * _motor.gravity * Mathf.Max(0.2f, _stats.jumpHeight)));
+            }
+
+            _motor.Move(_planar, dt);
         }
 
         public bool HasCombatTarget { get { return combat != null && combat.HasTarget; } }

@@ -3,5 +3,6 @@
   "tags": { "motif": "거미류", "trait": ["벽이동"] },
   "locomotion": { "legs": 8, "spdMul": 0.57, "jumpMul": 1.0, "wallClimb": true, "ceiling": true },
   "drawback": { "knockbackResist": -0.30 },
+  "color": "#2E8B85",
   "model": "Prefabs/Parts/box_lc_spider"
 }

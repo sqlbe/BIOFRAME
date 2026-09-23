@@ -4,5 +4,6 @@
   "ability": { "action": "THRUST", "damage": 95, "type": "blunt", "combo": 1,
                "cooldown": 6.0, "range": 2.8, "en": 18, "armorIgnore": 0.4 },
   "drawback": { "attackSpeedMul": 1.0 },
+  "color": "#E0A21E",
   "model": "Prefabs/Parts/box_fl_club"
 }

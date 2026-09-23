@@ -5,5 +5,6 @@
                "cooldown": 0.8, "range": 3.0, "en": 0 },
   "drawback": { "canBlock": false },
   "mutations": [ { "up": "damage*1.15", "down": "weight*1.10" } ],
+  "color": "#3FA65C",
   "model": "Prefabs/Parts/box_fl_scythe"
 }

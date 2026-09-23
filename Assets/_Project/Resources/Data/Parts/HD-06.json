@@ -3,7 +3,8 @@
   "tags": { "motif": "거미류", "trait": ["원거리", "잡기"] },
   "ability": { "action": "WEB", "damage": 10, "type": "pierce", "combo": 1,
                "cooldown": 7.0, "range": 12.0, "en": 14,
-               "rootSeconds": 2.0, "selfRootSeconds": 1.5 },
+               "rootSeconds": 6.0, "selfRootSeconds": 1.5, "projectileSpeed": 26.0 },
   "drawback": {},
+  "color": "#DCE2E8",
   "model": "Prefabs/Parts/box_hd_spinneret"
 }

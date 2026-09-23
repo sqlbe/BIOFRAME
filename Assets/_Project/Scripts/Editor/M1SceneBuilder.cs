@@ -17,9 +17,11 @@ namespace Bioframe.EditorTools
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
 
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            // 두께 있는 바닥. 얇은 판은 밀려나기나 돌진에 뚫릴 수 있다.
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Cube);
             ground.name = "Ground";
-            ground.transform.localScale = new Vector3(12f, 1f, 12f);
+            ground.transform.position = new Vector3(0f, -1f, 0f);
+            ground.transform.localScale = new Vector3(120f, 2f, 120f);
             Paint(ground, new Color(0.82f, 0.84f, 0.80f));
 
             // 경사, 계단, 벽: 다리 IK와 카메라를 확인할 지형

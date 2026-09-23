@@ -78,6 +78,8 @@ namespace Bioframe.Combat
             {
                 _root = Mathf.Max(_root, rootSeconds);
                 AddPopup("속박", new Color(0.10f, 0.35f, 0.55f));
+                Fx.Bind(transform, rootSeconds, new Color(0.95f, 0.96f, 1f));
+                Fx.Ring(transform.position + Vector3.up * 0.1f, Vector3.up, new Color(0.85f, 0.9f, 1f), 1.8f, 0.4f);
             }
             if (dotDps > 0f && dotDuration > 0f)
             {
@@ -111,6 +113,22 @@ namespace Bioframe.Combat
             float effectiveArmor = armor.Get(dir) * (1f - ArmorShred);
             float dealt = BuildStats.DamageAfterArmor(raw, effectiveArmor, armorIgnore);
             Hp = Mathf.Max(0f, Hp - dealt);
+
+            // 연출: 번쩍임, 파편, 밀려나기, 내가 맞았으면 화면 흔들림
+            Vector3 hitPoint = transform.position + Vector3.up * 1.2f;
+            Vector3 away = (transform.position - attackerPos);
+            away.y = 0f;
+            if (away.sqrMagnitude < 0.0001f) away = transform.forward;
+            away.Normalize();
+
+            Fx.Flash(gameObject, new Color(1f, 0.92f, 0.85f), 0.14f);
+            Fx.Spark(hitPoint, away * 0.5f + Vector3.up * 0.5f, new Color(0.95f, 0.75f, 0.35f),
+                     Mathf.Clamp(Mathf.RoundToInt(dealt / 8f), 4, 12), 3f + dealt * 0.03f);
+
+            var motor = GetComponent<Bioframe.Movement.SurfaceMotor>();
+            if (motor != null) motor.Nudge(away, Mathf.Clamp(dealt * 0.004f, 0.03f, 0.25f));
+
+            if (Fx.IsCameraTarget(transform)) Fx.Shake(Mathf.Clamp(dealt * 0.004f, 0.05f, 0.35f), 0.18f);
 
             var p = new Popup();
             p.text = dealt.ToString("0") + "  " + DirName(dir);
@@ -185,6 +203,17 @@ namespace Bioframe.Combat
                     GUI.color = new Color(0.72f, 0.24f, 0.18f, 0.95f);
                     GUI.DrawTexture(new Rect(back.x, back.y, w * (Hp / maxHp), h), Texture2D.whiteTexture);
                     GUI.color = prev;
+
+                    string st = StatusText;
+                    if (!string.IsNullOrEmpty(st))
+                    {
+                        var stStyle = new GUIStyle(GUI.skin.label);
+                        stStyle.fontSize = 12;
+                        stStyle.fontStyle = FontStyle.Bold;
+                        stStyle.alignment = TextAnchor.UpperCenter;
+                        stStyle.normal.textColor = new Color(0.08f, 0.30f, 0.50f);
+                        GUI.Label(new Rect(back.x - 30f, back.y - 18f, w + 60f, 18f), st, stStyle);
+                    }
                 }
             }
 

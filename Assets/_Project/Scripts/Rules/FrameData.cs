@@ -47,6 +47,7 @@ namespace Bioframe.Rules
     public class CoreData
     {
         public string id, name, size;
+        public string color;
         public float selfWeight = 60f;
         public CoreBase @base = new CoreBase();
         public float thrustFactor = 1f;
@@ -95,6 +96,7 @@ namespace Bioframe.Rules
         public float dotDps, dotDuration;    // 지속 피해
         public float armorShred, armorShredDuration;   // 상대 장갑 깎기
         public bool requiresSprint;          // 질주 중에만 사용 가능(치타 송곳니)
+        public float projectileSpeed;        // 0보다 크면 날아가는 발사체로 처리한다
         public int combo = 1;
         public BlockData block;
     }
@@ -117,6 +119,7 @@ namespace Bioframe.Rules
     public class PartData
     {
         public string id, name, socket, size, model;
+        public string color;        // "#RRGGBB". 조립 화면과 실제 모델 색에 쓴다
         public float weight;
         public int cost;
         public TagData tags = new TagData();
@@ -124,6 +127,28 @@ namespace Bioframe.Rules
         public AbilityData ability;         // 공격 파츠만 가짐
         public DrawbackData drawback = new DrawbackData();
         public List<MutationData> mutations = new List<MutationData>();
+    }
+
+    // "#RRGGBB" 문자열을 0~1 값 세 개로 바꾼다. 엔진에 의존하지 않도록 직접 변환한다.
+    public static class HexColor
+    {
+        public static bool TryParse(string hex, out float r, out float g, out float b)
+        {
+            r = g = b = 0f;
+            if (string.IsNullOrEmpty(hex)) return false;
+            string h = hex.Trim();
+            if (h.StartsWith("#")) h = h.Substring(1);
+            if (h.Length != 6) return false;
+
+            int v;
+            if (!int.TryParse(h, System.Globalization.NumberStyles.HexNumber,
+                              System.Globalization.CultureInfo.InvariantCulture, out v)) return false;
+
+            r = ((v >> 16) & 0xFF) / 255f;
+            g = ((v >> 8) & 0xFF) / 255f;
+            b = (v & 0xFF) / 255f;
+            return true;
+        }
     }
 
     public static class SizeGrade

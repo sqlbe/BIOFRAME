@@ -46,8 +46,9 @@ namespace Bioframe.Movement
         int _steppingGroup = -1;
         Material _legMaterial;
 
-        public void Setup(int legs, Transform body, float height, float length, float spread)
+        public void Setup(int legs, Transform body, float height, float length, float spread, Color? color = null)
         {
+            if (color.HasValue) legColor = color.Value;
             legCount = Mathf.Max(2, legs);
             _body = body;
             bodyHeight = height;
