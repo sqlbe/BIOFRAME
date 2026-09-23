@@ -86,6 +86,10 @@ namespace Bioframe.Assembly
                 break;
             }
 
+            // 등, 꼬리 파츠
+            AttachSimple(parts, visual, "DS", "mount_DS_0", new Vector3(0f, 0.12f, 0f), new Vector3(0.7f, 0.25f, 0.9f));
+            AttachSimple(parts, visual, "TL", "mount_TL_0", new Vector3(0f, 0.05f, -0.25f), new Vector3(0.2f, 0.2f, 0.8f));
+
             var motor = root.AddComponent<SurfaceMotor>();
             motor.height = visual.bodyHeight + 0.2f;
             motor.radius = 0.5f;
@@ -126,6 +130,22 @@ namespace Bioframe.Assembly
             AddSocket(v, body, "mount_DS_1", new Vector3(0f, v.bodyHeight + 0.4f, -0.4f));
             AddSocket(v, body, "mount_DS_2", new Vector3(0f, v.bodyHeight + 0.4f, -1.0f));
             AddSocket(v, body, "mount_TL_0", new Vector3(0f, v.bodyHeight, -1.3f));
+        }
+
+        static void AttachSimple(List<PartData> parts, FrameVisual visual, string socket, string node,
+                                 Vector3 offset, Vector3 size)
+        {
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var p = parts[i];
+                if (p == null || p.socket != socket) continue;
+                var s = visual.GetSocket(node);
+                if (s == null) return;
+                float scale = 0.85f + 0.2f * SizeGrade.Of(p.size);
+                var go = MakeBox(s, p.id, offset, size * scale, PartColorOf(p));
+                visual.attachedParts[node] = go.transform;
+                return;
+            }
         }
 
         public static Color PartColorOf(PartData p)

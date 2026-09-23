@@ -1,0 +1,7 @@
+{
+  "id": "TL-02", "name": "도마뱀 자절 꼬리", "socket": "TL", "size": "S", "weight": 8, "cost": 2,
+  "tags": { "motif": "파충류", "trait": ["생존"] },
+  "passive": { "survivesLethal": true, "hpBonus": -60 },
+  "color": "#4FA88E",
+  "model": "Prefabs/Parts/box_tl_autotomy"
+}

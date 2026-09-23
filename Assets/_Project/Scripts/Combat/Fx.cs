@@ -68,6 +68,22 @@ namespace Bioframe.Combat
             go.AddComponent<FxDust>().Play(dir, color, count, power);
         }
 
+        // 투명 상태처럼 색을 계속 입혀 두는 표현
+        public static void Tint(GameObject root, Color color)
+        {
+            if (root == null) return;
+            var t = root.GetComponent<FxTint>();
+            if (t == null) t = root.AddComponent<FxTint>();
+            t.Apply(color);
+        }
+
+        public static void ClearTint(GameObject root)
+        {
+            if (root == null) return;
+            var t = root.GetComponent<FxTint>();
+            if (t != null) t.Clear();
+        }
+
         public static void Shake(float amplitude, float duration)
         {
             var cam = Camera.main;
@@ -234,6 +250,54 @@ namespace Bioframe.Combat
                 _puffs[i] = p;
             }
             if (_life <= 0f) Destroy(gameObject);
+        }
+    }
+
+    public class FxTint : MonoBehaviour
+    {
+        readonly List<MeshRenderer> _renderers = new List<MeshRenderer>();
+        readonly List<Color> _original = new List<Color>();
+        bool _active;
+
+        public void Apply(Color color)
+        {
+            Collect();
+            _active = true;
+            for (int i = 0; i < _renderers.Count; i++)
+            {
+                if (_renderers[i] == null) continue;
+                var block = new MaterialPropertyBlock();
+                Color c = Color.Lerp(_original[i], color, 0.75f);
+                block.SetColor("_BaseColor", c);
+                block.SetColor("_Color", c);
+                _renderers[i].SetPropertyBlock(block);
+            }
+        }
+
+        public void Clear()
+        {
+            if (!_active) return;
+            _active = false;
+            for (int i = 0; i < _renderers.Count; i++)
+            {
+                if (_renderers[i] == null) continue;
+                var block = new MaterialPropertyBlock();
+                block.SetColor("_BaseColor", _original[i]);
+                block.SetColor("_Color", _original[i]);
+                _renderers[i].SetPropertyBlock(block);
+            }
+        }
+
+        void Collect()
+        {
+            if (_renderers.Count > 0) return;
+            GetComponentsInChildren(true, _renderers);
+            for (int i = 0; i < _renderers.Count; i++)
+            {
+                var block = new MaterialPropertyBlock();
+                _renderers[i].GetPropertyBlock(block);
+                _original.Add(block.HasColor("_BaseColor") ? block.GetColor("_BaseColor") : Color.gray);
+            }
         }
     }
 

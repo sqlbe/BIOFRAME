@@ -25,6 +25,8 @@ namespace Bioframe.Combat
         readonly List<Weapon> _weapons = new List<Weapon>();
         Damageable _self;
         Weapon _head;               // 머리 파츠 (Q 키)
+        Weapon _back, _tail, _skin; // 등(E), 꼬리(R), 외피(F)
+        public bool Cloaked { get; private set; }
         FrameStats _stats;
         FrameController _controller;
         Vector3 _dashTo;
@@ -59,6 +61,11 @@ namespace Bioframe.Combat
             _weapons.Clear();
             _head = null;
             AttackRange = 0f;
+
+            _back = MakeSlot(parts, "DS", visual, "mount_DS_0");
+            _tail = MakeSlot(parts, "TL", visual, "mount_TL_0");
+            _skin = MakeSlot(parts, "SK", visual, null);
+            Cloaked = false;
 
             for (int i = 0; i < parts.Count; i++)
             {
@@ -126,6 +133,41 @@ namespace Bioframe.Combat
 
         public void ClearTarget() { Target = null; AutoApproach = false; }
 
+        static Weapon MakeSlot(List<PartData> parts, string socket, FrameVisual visual, string node)
+        {
+            for (int i = 0; i < parts.Count; i++)
+            {
+                var p = parts[i];
+                if (p == null || p.socket != socket || p.ability == null) continue;
+                var w = new Weapon();
+                w.part = p;
+                w.visual = (visual != null && node != null) ? visual.GetAttachedPart(node) : null;
+                if (w.visual != null) w.restRotation = w.visual.localRotation;
+                return w;
+            }
+            return null;
+        }
+
+        Weapon SlotOf(string socket)
+        {
+            if (socket == "DS") return _back;
+            if (socket == "TL") return _tail;
+            if (socket == "SK") return _skin;
+            return _head;
+        }
+
+        public string SlotName(string socket)
+        {
+            var w = SlotOf(socket);
+            return w != null ? w.part.name : "없음";
+        }
+
+        public float SlotCooldown(string socket)
+        {
+            var w = SlotOf(socket);
+            return w != null ? Mathf.Max(0f, w.cooldown) : 0f;
+        }
+
         public string HeadName { get { return _head != null ? _head.part.name : "없음"; } }
         public float HeadCooldown { get { return _head != null ? Mathf.Max(0f, _head.cooldown) : 0f; } }
 
@@ -158,6 +200,21 @@ namespace Bioframe.Combat
                     Fx.Dust(transform.position, transform.forward, new Color(0.86f, 0.82f, 0.72f), 8, 2.8f);
                 }
             }
+
+            TickSlot(_back, dt);
+            TickSlot(_tail, dt);
+            TickSlot(_skin, dt);
+
+            // 투명 유지: EN을 계속 쓴다
+            if (Cloaked)
+            {
+                float up = _skin != null ? _skin.part.ability.upkeep : 0f;
+                if (_controller == null || !_controller.TrySpendEnergy(up * dt)) SetCloak(false);
+            }
+
+            if (InputReader.BackPressed) UseSlot(_back);
+            if (InputReader.TailPressed) UseSlot(_tail);
+            if (InputReader.SkinPressed) UseSlot(_skin);
 
             if (_head != null)
             {
@@ -258,6 +315,120 @@ namespace Bioframe.Combat
                 Strike(w);
                 break;      // 한 프레임에 한 팔만
             }
+        }
+
+        static void TickSlot(Weapon w, float dt)
+        {
+            if (w == null) return;
+            if (w.cooldown > 0f) w.cooldown -= dt;
+            if (w.swing > 0f && w.visual != null)
+            {
+                w.swing = Mathf.Max(0f, w.swing - dt / 0.22f);
+                float k = Mathf.Sin((1f - w.swing) * Mathf.PI);
+                w.visual.localRotation = w.restRotation * Quaternion.Euler(30f * k, 0f, 0f);
+            }
+        }
+
+        public void SetCloak(bool on)
+        {
+            if (Cloaked == on) return;
+            Cloaked = on;
+            if (on) { Fx.Tint(gameObject, new Color(0.88f, 0.94f, 0.96f)); LastLog = "투명 켜짐"; }
+            else { Fx.ClearTint(gameObject); LastLog = "투명 꺼짐"; }
+        }
+
+        // 등, 꼬리, 외피 파츠 사용
+        bool UseSlot(Weapon w)
+        {
+            if (w == null) return false;
+            var a = w.part.ability;
+
+            if (_self != null && _self.Rooted) { LastLog = "속박 중"; return false; }
+            if (w.cooldown > 0f) { LastLog = w.part.name + " 대기 " + w.cooldown.ToString("0.0") + "초"; return false; }
+
+            if (a.action == "CLOAK")
+            {
+                if (Cloaked) { SetCloak(false); w.cooldown = a.cooldown; return true; }
+                if (_controller != null && !_controller.TrySpendEnergy(a.en)) { LastLog = "EN 부족"; return false; }
+                SetCloak(true);
+                w.cooldown = a.cooldown;
+                return true;
+            }
+
+            if (_controller != null && !_controller.TrySpendEnergy(a.en)) { LastLog = "EN 부족 (" + a.en.ToString("0") + ")"; return false; }
+
+            w.swing = 1f;
+            w.cooldown = a.cooldown;
+            if (Cloaked) SetCloak(false);   // 공격하면 투명이 풀린다
+
+            if (a.action == "SPRAY") { Spray(w); return true; }
+            if (a.action == "DRONE") { Drones(w); return true; }
+
+            if (!HasTarget) { LastLog = w.part.name + ": 대상이 없다"; return false; }
+            if (Vector3.Distance(transform.position, Target.transform.position) > a.range)
+            { LastLog = w.part.name + " 사거리 밖"; return false; }
+
+            if (_controller != null) _controller.FaceTowards(Target.transform.position);
+            float dealt = Target.ApplyDamage(a.damage, transform.position, Mathf.Clamp01(a.armorIgnore));
+            Target.ApplyStatus(transform.position, a.rootSeconds, a.dotDps, a.dotDuration, a.armorShred, a.armorShredDuration);
+            Fx.Ring(Target.transform.position + Vector3.up * 1.0f, Vector3.up, TrailColorFor(w.part), 1.0f, 0.22f);
+            LastLog = w.part.name + " -> " + dealt.ToString("0") + " 피해";
+            return true;
+        }
+
+        // 뒤쪽으로 분사. 쫓아오는 상대를 떼어내는 용도.
+        void Spray(Weapon w)
+        {
+            var a = w.part.ability;
+            Vector3 origin = transform.position + transform.up * 0.8f;
+            Vector3 dir = -transform.forward;
+            float half = Mathf.Max(20f, a.coneAngle) * 0.5f;
+            int hitCount = 0;
+
+            var cols = Physics.OverlapSphere(origin, a.range, ~0, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < cols.Length; i++)
+            {
+                if (cols[i].transform.IsChildOf(transform)) continue;
+                var d = cols[i].GetComponentInParent<Damageable>();
+                if (d == null || !d.Alive) continue;
+
+                Vector3 to = d.transform.position - origin;
+                if (Vector3.Angle(dir, to) > half) continue;
+
+                d.ApplyDamage(a.damage, transform.position, Mathf.Clamp01(a.armorIgnore));
+                d.ApplyStatus(transform.position, a.rootSeconds, a.dotDps, a.dotDuration, a.armorShred, a.armorShredDuration);
+                hitCount++;
+            }
+
+            for (int i = 0; i < 5; i++)
+                Fx.Spark(origin + dir * (0.8f + i * 0.7f), dir + Vector3.up * 0.3f, new Color(0.95f, 0.45f, 0.18f), 5, 4f);
+            Fx.Ring(origin + dir * 1.2f, dir, new Color(0.95f, 0.5f, 0.2f), a.range * 0.6f, 0.3f);
+            if (Fx.IsCameraTarget(transform)) Fx.Shake(0.2f, 0.15f);
+
+            LastLog = w.part.name + " 분사 -> " + hitCount + "명 적중";
+        }
+
+        // 작은 드론을 여러 발 날린다
+        void Drones(Weapon w)
+        {
+            var a = w.part.ability;
+            if (!HasTarget) { LastLog = w.part.name + ": 대상이 없다"; return; }
+
+            Vector3 origin = transform.position + transform.up * 1.2f;
+            int count = Mathf.Max(1, a.projectileCount);
+
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 spread = Random.insideUnitSphere * 0.6f;
+                Projectile.Spawn(transform, origin + spread, Target, a.projectileSpeed * Random.Range(0.85f, 1.15f), 1.2f,
+                                 FrameBuilder.ColorOf(w.part.color, Color.yellow), 0.05f,
+                                 (hitTarget, result) =>
+                                 {
+                                     if (result != Projectile.Result.Hit || hitTarget == null) return;
+                                     hitTarget.ApplyDamage(a.damage, transform.position, Mathf.Clamp01(a.armorIgnore));
+                                 });
+            }
+            LastLog = w.part.name + " 드론 " + count + "기 발사";
         }
 
         void BeginHeadAim()

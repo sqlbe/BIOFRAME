@@ -26,6 +26,9 @@ namespace Bioframe.Assembly
         // 앞다리 후보. 빈 칸(null)까지 돌려서 한쪽 팔을 비울 수도 있다.
         static readonly string[] ArmCycle = { "FL-01", "FL-02", "FL-03", null };
         static readonly string[] HeadCycle = { "HD-06", "HD-07", "HD-08", "HD-01", null };
+        static readonly string[] BackCycle = { "DS-01", "DS-02", "DS-03", null };
+        static readonly string[] TailCycle = { "TL-01", "TL-02", null };
+        static readonly string[] SkinCycle = { "SK-01", "SK-02", null };
 
         GameObject _frame;
         GameObject _bot;
@@ -80,6 +83,9 @@ namespace Bioframe.Assembly
             else if (n == 6) CycleHead();
             else if (n == 7) { botCoreId = botCoreId == "QUA" ? "INS" : "QUA"; SpawnBot(); }
             else if (n == 8) SpawnBot();
+            else if (n == 10) CycleSocket("DS", BackCycle);
+            else if (n == 11) CycleSocket("TL", TailCycle);
+            else if (n == 12) CycleSocket("SK", SkinCycle);
             else if (n == 9) { coreId = coreId == "INS" ? "QUA" : "INS"; Respawn(); }
         }
 
@@ -88,6 +94,32 @@ namespace Bioframe.Assembly
             _mode = _mode == ControlMode.Direct ? ControlMode.ClickMove : ControlMode.Direct;
             if (_controller != null) _controller.SetMode(_mode);
             if (cam != null) cam.SetMode(_mode == ControlMode.Direct ? CameraMode.Follow : CameraMode.TopDown);
+        }
+
+        // 소켓 하나의 파츠를 목록 순서대로 돌린다
+        void CycleSocket(string socket, string[] cycle)
+        {
+            int idx = -1;
+            for (int i = 0; i < partIds.Count; i++)
+            {
+                var p = PartDatabase.GetPart(partIds[i]);
+                if (p != null && p.socket == socket) { idx = i; break; }
+            }
+
+            string current = idx >= 0 ? partIds[idx] : null;
+            int next = 0;
+            for (int i = 0; i < cycle.Length; i++)
+                if (cycle[i] == current) { next = (i + 1) % cycle.Length; break; }
+
+            string id = cycle[next];
+            if (idx >= 0)
+            {
+                if (id == null) partIds.RemoveAt(idx);
+                else partIds[idx] = id;
+            }
+            else if (id != null) partIds.Add(id);
+
+            Respawn();
         }
 
         void CycleHead()
@@ -197,6 +229,8 @@ namespace Bioframe.Assembly
             _playerHp.displayName = "내 기체";
             _playerHp.maxHp = _stats.hp;
             _playerHp.armor = _stats.armor;
+            _playerHp.survivesLethal = _stats.survivesLethal;
+            _playerHp.knockbackResist = _stats.knockbackResist;
             _playerHp.ResetHp();
 
             var shape = _frame.AddComponent<CapsuleCollider>();     // 봇이 나를 조준할 수 있게
@@ -261,6 +295,8 @@ namespace Bioframe.Assembly
             _botHp.displayName = "적 기체 (" + core.name + ")";
             _botHp.maxHp = stats.hp;
             _botHp.armor = stats.armor;
+            _botHp.survivesLethal = stats.survivesLethal;
+            _botHp.knockbackResist = stats.knockbackResist;
             _botHp.ResetHp();
 
             var shape = _bot.AddComponent<CapsuleCollider>();
@@ -326,7 +362,7 @@ namespace Bioframe.Assembly
             var prev = GUI.color;
 
             // 바탕을 직접 그린다. 에디터 기본 상자는 어두워서 글자가 묻힌다.
-            var panel = new Rect(10, 10, 380, 372);
+            var panel = new Rect(10, 10, 400, 410);
             GUI.color = new Color(1f, 1f, 1f, 0.94f);
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
             GUI.color = new Color(0.62f, 0.66f, 0.64f, 1f);
@@ -379,19 +415,27 @@ namespace Bioframe.Assembly
                 if (!string.IsNullOrEmpty(_combat.LastLog))
                     sb.AppendLine("<color=#A8650F>" + _combat.LastLog + "</color>");
             }
-            sb.AppendLine("<color=#3C4A46>1 거미 · 2 메뚜기 · 3 치타 · 9 코어 · R 처음 위치</color>");
+            sb.AppendLine("<color=#3C4A46>1 거미 · 2 메뚜기 · 3 치타 · 9 코어</color>");
             if (_playerHp != null)
                 sb.AppendLine("내 HP " + _playerHp.Hp.ToString("0") + " / " + _playerHp.maxHp.ToString("0")
                               + (_playerHp.Alive ? "" : "  <color=#B23A2E>격파됨</color>"));
             if (_botHp != null)
                 sb.AppendLine("<color=#B23A2E>" + _botHp.displayName + " HP " + _botHp.Hp.ToString("0")
                               + " / " + _botHp.maxHp.ToString("0") + "</color>");
-            sb.AppendLine("<color=#3C4A46>4 왼팔 · 5 오른팔 · 6 머리 · 7 봇 코어 · 8 봇 재생성</color>");
+            if (_combat != null)
+            {
+                sb.AppendLine("<color=#3C4A46>E 등: " + _combat.SlotName("DS")
+                              + "  ·  R 꼬리: " + _combat.SlotName("TL")
+                              + "  ·  F 외피: " + _combat.SlotName("SK")
+                              + (_combat.Cloaked ? "  <color=#14695F>투명</color>" : "") + "</color>");
+            }
+            sb.AppendLine("<color=#3C4A46>4 왼팔 · 5 오른팔 · 6 머리 · 0 등 · - 꼬리 · = 외피</color>");
+            sb.AppendLine("<color=#3C4A46>7 봇 코어 · 8 봇 재생성 · F5 처음 위치</color>");
             if (_combat != null)
                 sb.AppendLine((_combat.AimingHead ? "<color=#A8650F>Q 조준 중 — 대상 클릭: " : "<color=#3C4A46>Q 머리 파츠: ") + _combat.HeadName
                               + (_combat.HeadCooldown > 0f ? " (대기 " + _combat.HeadCooldown.ToString("0.0") + "s)" : "") + "</color>");
 
-            GUI.Label(new Rect(22, 18, 366, 356), sb.ToString(), style);
+            GUI.Label(new Rect(22, 18, 386, 394), sb.ToString(), style);
             GUI.color = prev;
         }
     }

@@ -1,0 +1,8 @@
+{
+  "id": "SK-01", "name": "카멜레온 적응 피부", "socket": "SK", "size": "S", "weight": 4, "cost": 4,
+  "tags": { "motif": "파충류", "trait": ["은신"] },
+  "ability": { "action": "CLOAK", "damage": 0, "type": "none", "combo": 1,
+               "cooldown": 3.0, "range": 0, "en": 8, "upkeep": 5.0 },
+  "color": "#9FD8C8",
+  "model": "Prefabs/Parts/box_sk_chameleon"
+}

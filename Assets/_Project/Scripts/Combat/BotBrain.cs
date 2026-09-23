@@ -9,6 +9,7 @@ namespace Bioframe.Combat
     {
         public Damageable enemy;
         public float reactionTime = 0.15f;
+        public float senseRange = 6f;        // 투명한 상대를 알아채는 거리
 
         FrameController _ctrl;
         FrameCombat _combat;
@@ -55,6 +56,17 @@ namespace Bioframe.Combat
             _think -= dt;
             if (_think > 0f) return;
             _think = reactionTime;
+
+            // 상대가 투명이면 가까이 오기 전까지 못 본다
+            var enemyCombat = enemy.GetComponent<FrameCombat>();
+            bool hidden = enemyCombat != null && enemyCombat.Cloaked
+                          && Vector3.Distance(transform.position, enemy.transform.position) > senseRange;
+            if (hidden)
+            {
+                _ctrl.botWish = Vector3.zero;
+                _combat.ClearTarget();
+                return;
+            }
 
             _combat.SetTarget(enemy, false);
 

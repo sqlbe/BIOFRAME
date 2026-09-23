@@ -1,0 +1,7 @@
+{
+  "id": "DS-01", "name": "딱정벌레 겉날개 갑각", "socket": "DS", "size": "L", "weight": 35, "cost": 3,
+  "tags": { "motif": "곤충", "trait": ["장갑"] },
+  "passive": { "armFront": 60, "armTop": 40, "armSide": 20, "spdMul": 0.9 },
+  "color": "#6B8F3A",
+  "model": "Prefabs/Parts/box_ds_elytra"
+}

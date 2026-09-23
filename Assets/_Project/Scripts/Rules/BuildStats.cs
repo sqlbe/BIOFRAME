@@ -19,6 +19,8 @@ namespace Bioframe.Rules
         public int legs;
         public bool wallClimb, ceiling;
         public float turnMulWhileSprint;
+        public float knockbackResist;
+        public bool survivesLethal;
     }
 
     public static class BuildStats
@@ -55,10 +57,26 @@ namespace Bioframe.Rules
                 if (SizeGrade.Of(p.size) != SizeGrade.Of(core.size)) w *= 1.2f;
                 s.partsWeight += w;
 
+                // 상시 효과: 갑각, 판갑, 자절 꼬리 같은 파츠
+                if (p.passive != null)
+                {
+                    s.armor.front += p.passive.armFront;
+                    s.armor.side += p.passive.armSide;
+                    s.armor.rear += p.passive.armRear;
+                    s.armor.top += p.passive.armTop;
+                    spdMul *= p.passive.spdMul <= 0f ? 1f : p.passive.spdMul;
+                    jumpMul *= p.passive.jumpMul <= 0f ? 1f : p.passive.jumpMul;
+                    s.hp += p.passive.hpBonus;
+                    s.enRegen += p.passive.enRegenBonus;
+                    s.knockbackResist += p.passive.knockbackResist;
+                    s.survivesLethal |= p.passive.survivesLethal;
+                }
+
                 if (p.drawback != null)
                 {
                     armMul *= p.drawback.armMul;
                     s.turnMulWhileSprint *= p.drawback.turnMulWhileSprint;
+                    s.knockbackResist += p.drawback.knockbackResist;
                 }
 
                 // JsonUtility는 JSON에 없는 객체 항목도 기본값으로 채운다.

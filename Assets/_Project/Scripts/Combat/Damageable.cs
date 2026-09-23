@@ -12,6 +12,9 @@ namespace Bioframe.Combat
         public ArmorData armor = new ArmorData { front = 60f, side = 30f, rear = 10f, top = 25f };
 
         public float Hp { get; private set; }
+        public bool survivesLethal;      // 도마뱀 자절 꼬리
+        public float knockbackResist;    // 0~1. 클수록 덜 밀린다
+        bool _lethalUsed;
         public bool Alive { get { return Hp > 0f; } }
 
         public System.Action<Damageable> onDeath;
@@ -52,6 +55,7 @@ namespace Bioframe.Combat
         {
             Hp = maxHp;
             _root = 0f; _dotTime = 0f; _dotDps = 0f; _shredTime = 0f; _shred = 0f;
+            _lethalUsed = false;
         }
 
         // attackerPos 기준으로 어느 면을 맞았는지 판정한다
@@ -113,6 +117,13 @@ namespace Bioframe.Combat
             float effectiveArmor = armor.Get(dir) * (1f - ArmorShred);
             float dealt = BuildStats.DamageAfterArmor(raw, effectiveArmor, armorIgnore);
             Hp = Mathf.Max(0f, Hp - dealt);
+            if (Hp <= 0f && survivesLethal && !_lethalUsed)
+            {
+                _lethalUsed = true;
+                Hp = 1f;
+                AddPopup("자절!", new Color(0.10f, 0.50f, 0.42f));
+                Fx.Ring(transform.position + Vector3.up * 0.2f, Vector3.up, new Color(0.35f, 0.85f, 0.75f), 2.2f, 0.4f);
+            }
 
             // 연출: 번쩍임, 파편, 밀려나기, 내가 맞았으면 화면 흔들림
             Vector3 hitPoint = transform.position + Vector3.up * 1.2f;
@@ -126,7 +137,8 @@ namespace Bioframe.Combat
                      Mathf.Clamp(Mathf.RoundToInt(dealt / 8f), 4, 12), 3f + dealt * 0.03f);
 
             var motor = GetComponent<Bioframe.Movement.SurfaceMotor>();
-            if (motor != null) motor.Nudge(away, Mathf.Clamp(dealt * 0.004f, 0.03f, 0.25f));
+            if (motor != null)
+                motor.Nudge(away, Mathf.Clamp(dealt * 0.004f, 0.03f, 0.25f) * Mathf.Clamp01(1f - knockbackResist));
 
             if (Fx.IsCameraTarget(transform)) Fx.Shake(Mathf.Clamp(dealt * 0.004f, 0.05f, 0.35f), 0.18f);
 

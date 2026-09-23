@@ -93,6 +93,46 @@ namespace Bioframe.Movement
             }
         }
 
+        // E: 등 파츠, R: 꼬리 파츠, F: 외피 파츠
+        public static bool BackPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.eKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.E);
+#endif
+            }
+        }
+
+        public static bool TailPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.rKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.R);
+#endif
+            }
+        }
+
+        public static bool SkinPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.fKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.F);
+#endif
+            }
+        }
+
         public static bool JumpPressed
         {
             get
@@ -121,6 +161,9 @@ namespace Bioframe.Movement
                 if (k.digit5Key.wasPressedThisFrame) return 5;
                 if (k.digit6Key.wasPressedThisFrame) return 6;
                 if (k.digit9Key.wasPressedThisFrame) return 9;
+                if (k.digit0Key.wasPressedThisFrame) return 10;      // 등 파츠 교체
+                if (k.minusKey.wasPressedThisFrame) return 11;       // 꼬리 파츠 교체
+                if (k.equalsKey.wasPressedThisFrame) return 12;      // 외피 파츠 교체
                 return 0;
 #else
                 if (Input.GetKeyDown(KeyCode.Alpha1)) return 1;
@@ -130,6 +173,9 @@ namespace Bioframe.Movement
                 if (Input.GetKeyDown(KeyCode.Alpha5)) return 5;
                 if (Input.GetKeyDown(KeyCode.Alpha6)) return 6;
                 if (Input.GetKeyDown(KeyCode.Alpha9)) return 9;
+                if (Input.GetKeyDown(KeyCode.Alpha0)) return 10;
+                if (Input.GetKeyDown(KeyCode.Minus)) return 11;
+                if (Input.GetKeyDown(KeyCode.Equals)) return 12;
                 return 0;
 #endif
             }
@@ -220,16 +266,16 @@ namespace Bioframe.Movement
             }
         }
 
-        // R: 시작 위치로 되돌리기 (테스트용)
+        // F5: 시작 위치로 되돌리기 (테스트용)
         public static bool RespawnPressed
         {
             get
             {
 #if ENABLE_INPUT_SYSTEM
                 var k = Keyboard.current;
-                return k != null && k.rKey.wasPressedThisFrame;
+                return k != null && k.f5Key.wasPressedThisFrame;
 #else
-                return Input.GetKeyDown(KeyCode.R);
+                return Input.GetKeyDown(KeyCode.F5);
 #endif
             }
         }

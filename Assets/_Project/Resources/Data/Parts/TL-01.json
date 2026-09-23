@@ -1,0 +1,9 @@
+{
+  "id": "TL-01", "name": "전갈 독침", "socket": "TL", "size": "M", "weight": 14, "cost": 3,
+  "tags": { "motif": "거미류", "trait": ["관통", "독"] },
+  "ability": { "action": "STING", "damage": 30, "type": "pierce", "combo": 1,
+               "cooldown": 2.5, "range": 3.2, "en": 4,
+               "dotDps": 12.0, "dotDuration": 6.0 },
+  "color": "#7A3FA8",
+  "model": "Prefabs/Parts/box_tl_sting"
+}

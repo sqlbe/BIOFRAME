@@ -1,0 +1,7 @@
+{
+  "id": "SK-02", "name": "아르마딜로 판갑", "socket": "SK", "size": "L", "weight": 40, "cost": 3,
+  "tags": { "motif": "포유류", "trait": ["장갑"] },
+  "passive": { "armFront": 40, "armSide": 40, "armRear": 30, "armTop": 30, "spdMul": 0.8, "knockbackResist": 0.4 },
+  "color": "#8A8F96",
+  "model": "Prefabs/Parts/box_sk_armadillo"
+}

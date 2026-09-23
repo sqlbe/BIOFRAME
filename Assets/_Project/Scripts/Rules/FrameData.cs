@@ -97,6 +97,9 @@ namespace Bioframe.Rules
         public float armorShred, armorShredDuration;   // 상대 장갑 깎기
         public bool requiresSprint;          // 질주 중에만 사용 가능(치타 송곳니)
         public float projectileSpeed;        // 0보다 크면 날아가는 발사체로 처리한다
+        public int projectileCount = 1;      // 드론 포드처럼 여러 발 나가는 경우
+        public float coneAngle;              // 분사 각도(도). 범위 공격에 쓴다
+        public float upkeep;                 // 켜 두는 동안 초당 EN (카멜레온 투명)
         public int combo = 1;
         public BlockData block;
     }
@@ -115,6 +118,19 @@ namespace Bioframe.Rules
     [Serializable]
     public class MutationData { public string up, down; }
 
+    // 쓰는 능력이 없는 파츠(갑각, 판갑 등)가 주는 상시 효과
+    [Serializable]
+    public class PassiveData
+    {
+        public float armFront, armSide, armRear, armTop;
+        public float spdMul = 1f;
+        public float jumpMul = 1f;
+        public float hpBonus;
+        public float enRegenBonus;
+        public float knockbackResist;
+        public bool survivesLethal;      // 도마뱀 자절 꼬리
+    }
+
     [Serializable]
     public class PartData
     {
@@ -126,6 +142,7 @@ namespace Bioframe.Rules
         public LocomotionData locomotion;   // LC 파츠만 가짐
         public AbilityData ability;         // 공격 파츠만 가짐
         public DrawbackData drawback = new DrawbackData();
+        public PassiveData passive;
         public List<MutationData> mutations = new List<MutationData>();
     }
 
