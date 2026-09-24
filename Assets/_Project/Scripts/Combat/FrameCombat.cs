@@ -521,6 +521,10 @@ namespace Bioframe.Combat
                                  {
                                      if (result != Projectile.Result.Hit || hitTarget == null) return;
                                      hitTarget.ApplyDamage(a.damage, transform.position, Mathf.Clamp01(a.armorIgnore));
+
+                                     var mm = FindFirstObjectByType<Bioframe.Match.MissionManager>();
+                                     if (mm != null)
+                                         mm.NotifyDroneHit(Vector3.Distance(transform.position, hitTarget.transform.position));
                                  });
             }
             LastLog = w.part.name + " 드론 " + count + "기 발사";
