@@ -331,8 +331,12 @@ namespace Bioframe.Combat
                     var picked = PickDamageableUnderCursor();
                     _attackAim = 0f;
                     _blockClick = true;
+
+                    // 적을 정확히 찍지 않아도, 근처에 있는 적을 잡아 공격한다
+                    if (picked == null) picked = NearestEnemy(35f);
+
                     if (picked != null) SetTarget(picked, true);
-                    else LastLog = "적이 아니다. 취소";
+                    else LastLog = "근처에 적이 없다";
                 }
                 else if (_attackAim <= 0f) LastLog = "공격 지정 시간 초과";
             }
@@ -576,7 +580,7 @@ namespace Bioframe.Combat
             string partName = _head.part.name;
             Vector3 muzzle = origin + (point - origin).normalized * 0.8f;
             Projectile.Spawn(transform, muzzle, point, a.projectileSpeed, 1.4f,
-                             new Color(0.95f, 0.95f, 0.98f), 0.07f,
+                             new Color(0.18f, 0.45f, 0.95f), 0.10f,
                              (hitTarget, result) =>
                              {
                                  if (result != Projectile.Result.Hit || hitTarget == null)
@@ -590,6 +594,25 @@ namespace Bioframe.Combat
                                  LastLog = partName + " 명중 → " + d.ToString("0") + " 피해";
                              });
             LastLog = partName + " 발사";
+        }
+
+        // 가장 가까운 적을 찾는다. A로 바닥을 찍었을 때 쓴다.
+        Damageable NearestEnemy(float maxRange)
+        {
+            var all = FindObjectsByType<Damageable>(FindObjectsSortMode.None);
+            Damageable best = null;
+            float bestDist = maxRange;
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                var d = all[i];
+                if (d == null || !d.Alive) continue;
+                if (d.transform == transform || d.transform.IsChildOf(transform)) continue;
+
+                float dist = Vector3.Distance(transform.position, d.transform.position);
+                if (dist < bestDist) { bestDist = dist; best = d; }
+            }
+            return best;
         }
 
         Damageable PickDamageableUnderCursor()
@@ -680,7 +703,7 @@ namespace Bioframe.Combat
                 if (aimDir.sqrMagnitude < 0.001f) aimDir = transform.forward;
                 Vector3 muzzle = transform.position + transform.up * 0.9f + aimDir.normalized * 0.8f;
                 Projectile.Spawn(transform, muzzle, Target, a.projectileSpeed, 1.4f,
-                                 new Color(0.95f, 0.95f, 0.98f), 0.07f,
+                                 new Color(0.18f, 0.45f, 0.95f), 0.10f,
                                  (hitTarget, result) =>
                                  {
                                      if (result == Projectile.Result.Blocked) { LastLog = partName + " 막힘"; return; }

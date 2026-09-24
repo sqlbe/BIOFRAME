@@ -2,7 +2,7 @@
   "id": "DS-03", "name": "꿀벌 드론 포드", "socket": "DS", "size": "M", "weight": 24, "cost": 4,
   "tags": { "motif": "곤충", "trait": ["원거리"] },
   "ability": { "action": "DRONE", "damage": 18, "type": "pierce", "combo": 1,
-               "cooldown": 10.0, "range": 25.0, "en": 22,
+               "cooldown": 10.0, "range": 18.0, "en": 22,
                "projectileSpeed": 18.0, "projectileCount": 6 },
   "color": "#E0C040",
   "model": "Prefabs/Parts/box_ds_dronepod"

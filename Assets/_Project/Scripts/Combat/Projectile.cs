@@ -143,7 +143,7 @@ namespace Bioframe.Combat
         void Finish(Result r)
         {
             _done = true;
-            if (r == Result.Hit) Fx.Spark(_tip, Vector3.up, new Color(0.95f, 0.96f, 1f), 8, 3.5f);
+            if (r == Result.Hit) Fx.Spark(_tip, Vector3.up, new Color(0.25f, 0.55f, 1f), 8, 3.5f);
             else if (r == Result.Blocked) Fx.Spark(_tip, -(_tip - transform.position).normalized, new Color(0.8f, 0.8f, 0.85f), 4, 2.5f);
             _fade = r == Result.Hit ? 0.35f : 0.15f;
             if (_onArrive != null) _onArrive(_target, r);
