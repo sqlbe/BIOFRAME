@@ -498,6 +498,9 @@ namespace Bioframe.Combat
             if (Fx.IsCameraTarget(transform)) Fx.Shake(0.2f, 0.15f);
 
             LastLog = w.part.name + " 분사 -> " + hitCount + "명 적중";
+
+            var mission = FindFirstObjectByType<Bioframe.Match.MissionManager>();
+            if (mission != null) mission.NotifySpray();
         }
 
         // 작은 드론을 여러 발 날린다
@@ -685,6 +688,9 @@ namespace Bioframe.Combat
                 if (dir.sqrMagnitude < 0.01f) dir = -transform.forward;
                 _dashTo = Target.transform.position + dir.normalized * 1.6f;
                 _dashTime = 0.25f;
+
+                var mission = FindFirstObjectByType<Bioframe.Match.MissionManager>();
+                if (mission != null) mission.NotifyPounce();
                 Fx.Ring(transform.position + Vector3.up * 0.1f, Vector3.up, new Color(0.95f, 0.6f, 0.3f), 2.2f, 0.3f);
                 Fx.Afterimage(gameObject, new Color(0.95f, 0.55f, 0.25f), 0.3f);
                 Fx.Dust(transform.position, -transform.forward, new Color(0.86f, 0.82f, 0.72f), 6, 2.2f);

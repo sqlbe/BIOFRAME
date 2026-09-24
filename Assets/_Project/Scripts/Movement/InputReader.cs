@@ -326,6 +326,46 @@ namespace Bioframe.Movement
             }
         }
 
+        // M: 훈련 미션 시작/종료, N: 다음, B: 이전
+        public static bool MissionTogglePressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.mKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.M);
+#endif
+            }
+        }
+
+        public static bool MissionNextPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.nKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.N);
+#endif
+            }
+        }
+
+        public static bool MissionPrevPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.bKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.B);
+#endif
+            }
+        }
+
         public static bool CursorTogglePressed
         {
             get

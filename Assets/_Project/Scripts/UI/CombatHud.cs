@@ -12,6 +12,7 @@ namespace Bioframe.UI
         public FrameSpawner spawner;
         public AssemblyScreen assembly;
         public Bioframe.Match.MatchManager match;
+        public Bioframe.Match.MissionManager mission;
 
         static readonly string[] Keys = { "Q", "E", "R", "F" };
         static readonly string[] Sockets = { "HD", "DS", "TL", "SK" };
@@ -25,6 +26,7 @@ namespace Bioframe.UI
             if (spawner == null) spawner = FindFirstObjectByType<FrameSpawner>();
             if (assembly == null) assembly = FindFirstObjectByType<AssemblyScreen>();
             if (match == null) match = FindFirstObjectByType<Bioframe.Match.MatchManager>();
+            if (mission == null) mission = FindFirstObjectByType<Bioframe.Match.MissionManager>();
         }
 
         void EnsureStyles()
@@ -59,8 +61,60 @@ namespace Bioframe.UI
         }
 
         // 위 가운데: 라운드, 점수, 남은 시간, 안내 문구
+        // 왼쪽 위: 훈련 미션 카드
+        void DrawMissionCard()
+        {
+            if (mission == null) return;
+
+            if (!mission.Active)
+            {
+                var tip = new GUIStyle(_small);
+                tip.fontSize = 12;
+                GUI.Label(new Rect(16f, 14f, 320f, 18f), "M 훈련 미션 시작", tip);
+                return;
+            }
+
+            var m = mission.Current;
+            if (m == null) return;
+
+            var box = new Rect(14f, 12f, 360f, 92f);
+            Fill(box, new Color(1f, 1f, 1f, 0.93f));
+            Frame(box, new Color(0.62f, 0.66f, 0.64f));
+
+            var head = new GUIStyle(_small);
+            head.fontSize = 11;
+            GUI.Label(new Rect(box.x + 10f, box.y + 6f, box.width - 20f, 16f),
+                      "훈련 " + (mission.Index + 1) + " / " + mission.Count + "    <color=#3C4A46>M 종료 · N 다음 · B 이전</color>", head);
+
+            var title = new GUIStyle(_key);
+            title.fontSize = 14;
+            title.wordWrap = true;
+            GUI.Label(new Rect(box.x + 10f, box.y + 24f, box.width - 20f, 38f), m.title, title);
+
+            var hint = new GUIStyle(_small);
+            hint.wordWrap = true;
+            GUI.Label(new Rect(box.x + 10f, box.y + 62f, box.width - 20f, 28f), m.hint, hint);
+
+            if (m.goal > 1)
+            {
+                var prog = new GUIStyle(_small);
+                prog.alignment = TextAnchor.UpperRight;
+                GUI.Label(new Rect(box.x + 10f, box.y + 6f, box.width - 20f, 16f),
+                          mission.Progress + " / " + m.goal, prog);
+            }
+
+            if (!string.IsNullOrEmpty(mission.Flash))
+            {
+                var big = new GUIStyle(_key);
+                big.alignment = TextAnchor.MiddleCenter;
+                big.fontSize = 22;
+                GUI.Label(new Rect(0f, Screen.height * 0.26f, Screen.width, 34f), mission.Flash, big);
+            }
+        }
+
         void DrawMatchBar()
         {
+            if (mission != null && mission.Active) return;   // 훈련 중에는 경기 표시를 숨긴다
             if (match == null) return;
 
             float w = 320f;
@@ -123,6 +177,7 @@ namespace Bioframe.UI
             EnsureStyles();
 
             DrawMatchBar();
+            DrawMissionCard();
 
             if (assembly != null && assembly.IsOpen) return;   // 조립 화면이 열려 있으면 나머지는 가린다
 

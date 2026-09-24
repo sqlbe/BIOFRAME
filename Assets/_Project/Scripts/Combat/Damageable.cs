@@ -20,6 +20,11 @@ namespace Bioframe.Combat
 
         public System.Action<Damageable> onDeath;
 
+        // 미션 진행 판정에 쓰는 전역 신호
+        public static System.Action<Damageable, float, Vector3> AnyDamaged;   // 대상, 들어간 피해, 때린 위치
+        public static System.Action<Damageable, float, Vector3> AnyRooted;    // 대상, 속박 시간, 건 위치
+        public static System.Action<Damageable, bool> AnyDeath;               // 대상, 지속 피해로 죽었는지
+
         struct Popup
         {
             public string text;
@@ -85,6 +90,7 @@ namespace Bioframe.Combat
                 _rootUntil = Mathf.Max(_rootUntil, Time.time + rootSeconds);
                 AddPopup("속박", new Color(0.10f, 0.35f, 0.55f));
                 Fx.Bind(transform, rootSeconds, new Color(0.95f, 0.96f, 1f));
+                if (AnyRooted != null) AnyRooted(this, rootSeconds, attackerPos);
                 Fx.Ring(transform.position + Vector3.up * 0.1f, Vector3.up, new Color(0.85f, 0.9f, 1f), 1.8f, 0.4f);
             }
             if (dotDps > 0f && dotDuration > 0f)
@@ -151,7 +157,12 @@ namespace Bioframe.Combat
             p.color = dir == "rear" ? new Color(0.70f, 0.18f, 0.12f) : new Color(0.12f, 0.16f, 0.14f);
             _popups.Add(p);
 
-            if (!Alive && onDeath != null) onDeath(this);
+            if (AnyDamaged != null) AnyDamaged(this, dealt, attackerPos);
+            if (!Alive)
+            {
+                if (onDeath != null) onDeath(this);
+                if (AnyDeath != null) AnyDeath(this, false);
+            }
             return dealt;
         }
 
@@ -182,7 +193,11 @@ namespace Bioframe.Combat
                     float tickDamage = _dotDps * 0.5f;
                     Hp = Mathf.Max(0f, Hp - tickDamage);
                     AddPopup(tickDamage.ToString("0"), new Color(0.35f, 0.45f, 0.20f));
-                    if (!Alive && onDeath != null) onDeath(this);
+                    if (!Alive)
+                    {
+                        if (onDeath != null) onDeath(this);
+                        if (AnyDeath != null) AnyDeath(this, true);
+                    }
                 }
                 if (_dotTime <= 0f) _dotDps = 0f;
             }

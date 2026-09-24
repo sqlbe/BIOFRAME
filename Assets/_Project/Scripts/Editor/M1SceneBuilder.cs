@@ -120,6 +120,19 @@ namespace Bioframe.EditorTools
             match.assembly = screen;
             hud.match = match;
 
+            var missionGo = new GameObject("MissionManager");
+            var mission = missionGo.AddComponent<Bioframe.Match.MissionManager>();
+            mission.spawner = spawner;
+            mission.match = match;
+            hud.mission = mission;
+
+            var menu = uiGo.AddComponent<StartMenu>();
+            menu.match = match;
+            menu.mission = mission;
+            menu.assembly = screen;
+            menu.spawner = spawner;
+            match.autoStart = false;
+
             var lightGo = GameObject.Find("Directional Light");
             if (lightGo != null)
             {

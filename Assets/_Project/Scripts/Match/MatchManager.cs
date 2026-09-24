@@ -28,6 +28,7 @@ namespace Bioframe.Match
         public float roundEndSeconds = 2.5f;
         public float intermissionSeconds = 30f;
         public int swapLimit = 2;           // 라운드 사이 교체 가능한 소켓 수
+        public bool autoStart = false;      // 시작 메뉴에서 고를 때까지 기다린다
 
         public MatchState State { get; private set; }
         public int RoundNumber { get; private set; }
@@ -42,7 +43,7 @@ namespace Bioframe.Match
             if (spawner == null) spawner = FindFirstObjectByType<FrameSpawner>();
             if (assembly == null) assembly = FindFirstObjectByType<AssemblyScreen>();
             if (spawner != null) spawner.autoRespawn = false;
-            StartMatch();
+            if (autoStart) StartMatch();
         }
 
         public void StartMatch()
