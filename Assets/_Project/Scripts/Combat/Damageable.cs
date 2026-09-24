@@ -8,6 +8,7 @@ namespace Bioframe.Combat
     public class Damageable : MonoBehaviour
     {
         public string displayName = "대상";
+        public string subtitle;            // 장착 파츠 요약. 이름표 아래에 표시한다
         public float maxHp = 800f;
         public ArmorData armor = new ArmorData { front = 60f, side = 30f, rear = 10f, top = 25f };
 
@@ -30,19 +31,20 @@ namespace Bioframe.Combat
         readonly List<Popup> _popups = new List<Popup>();
 
         // 상태 효과
-        float _root;                       // 속박 남은 시간
+        float _rootUntil;                  // 속박이 끝나는 시각
         float _dotDps, _dotTime, _dotTick; // 지속 피해
         float _shred, _shredTime;          // 장갑 깎기 비율
         Vector3 _lastAttacker;
 
-        public bool Rooted { get { return _root > 0f; } }
+        public bool Rooted { get { return Time.time < _rootUntil; } }
+        public float RootRemain { get { return Mathf.Max(0f, _rootUntil - Time.time); } }
         public float ArmorShred { get { return _shredTime > 0f ? _shred : 0f; } }
         public string StatusText
         {
             get
             {
                 string t = "";
-                if (_root > 0f) t += "속박 " + _root.ToString("0.0") + "s ";
+                if (Rooted) t += "속박 " + RootRemain.ToString("0.0") + "s ";
                 if (_dotTime > 0f) t += "지속피해 ";
                 if (_shredTime > 0f) t += "장갑-" + (_shred * 100f).ToString("0") + "% ";
                 return t;
@@ -54,7 +56,7 @@ namespace Bioframe.Combat
         public void ResetHp()
         {
             Hp = maxHp;
-            _root = 0f; _dotTime = 0f; _dotDps = 0f; _shredTime = 0f; _shred = 0f;
+            _rootUntil = 0f; _dotTime = 0f; _dotDps = 0f; _shredTime = 0f; _shred = 0f;
             _lethalUsed = false;
         }
 
@@ -80,7 +82,7 @@ namespace Bioframe.Combat
 
             if (rootSeconds > 0f)
             {
-                _root = Mathf.Max(_root, rootSeconds);
+                _rootUntil = Mathf.Max(_rootUntil, Time.time + rootSeconds);
                 AddPopup("속박", new Color(0.10f, 0.35f, 0.55f));
                 Fx.Bind(transform, rootSeconds, new Color(0.95f, 0.96f, 1f));
                 Fx.Ring(transform.position + Vector3.up * 0.1f, Vector3.up, new Color(0.85f, 0.9f, 1f), 1.8f, 0.4f);
@@ -167,7 +169,6 @@ namespace Bioframe.Combat
         void Update()
         {
             float dt = Time.deltaTime;
-            if (_root > 0f) _root -= dt;
             if (_shredTime > 0f) _shredTime -= dt;
 
             // 지속 피해는 0.5초마다 한 번씩 들어간다
@@ -215,6 +216,20 @@ namespace Bioframe.Combat
                     GUI.color = new Color(0.72f, 0.24f, 0.18f, 0.95f);
                     GUI.DrawTexture(new Rect(back.x, back.y, w * (Hp / maxHp), h), Texture2D.whiteTexture);
                     GUI.color = prev;
+
+                    var nameStyle = new GUIStyle(GUI.skin.label);
+                    nameStyle.fontSize = 12;
+                    nameStyle.alignment = TextAnchor.UpperCenter;
+                    nameStyle.normal.textColor = new Color(0.10f, 0.14f, 0.12f);
+                    GUI.Label(new Rect(back.x - 60f, back.y + 8f, w + 120f, 16f), displayName, nameStyle);
+
+                    if (!string.IsNullOrEmpty(subtitle))
+                    {
+                        var subStyle = new GUIStyle(nameStyle);
+                        subStyle.fontSize = 10;
+                        subStyle.normal.textColor = new Color(0.36f, 0.42f, 0.40f);
+                        GUI.Label(new Rect(back.x - 90f, back.y + 22f, w + 180f, 14f), subtitle, subStyle);
+                    }
 
                     string st = StatusText;
                     if (!string.IsNullOrEmpty(st))

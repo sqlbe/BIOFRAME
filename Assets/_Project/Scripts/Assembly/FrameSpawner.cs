@@ -13,14 +13,18 @@ namespace Bioframe.Assembly
         public string coreId = "INS";
         public List<string> partIds = new List<string> { "LC-01", "FL-01", "FL-03", "HD-06" };
         public ThirdPersonCamera cam;
-        public bool showHud = true;
+        public bool showHud = false;   // F2로 펴는 자세한 정보 패널
 
         [Header("봇")]
         public bool spawnBot = true;
         public string botCoreId = "INS";
         public List<string> botPartIds = new List<string> { "LC-03", "FL-01", "HD-08" };
         public Vector3 botOffset = new Vector3(9f, 0.5f, 7f);
+        // 가장 긴 사거리(거미줄 12m)보다 멀리 떨어뜨려 시작한다
+        public float botSpawnDistance = 20f;
+        public int botPreset = 0;
         public float respawnDelay = 4f;
+        public bool autoRespawn = true;      // 라운드제에서는 경기 진행자가 대신 관리한다
 
         static readonly string[] LocomotionCycle = { "LC-01", "LC-02", "LC-03" };
         // 앞다리 후보. 빈 칸(null)까지 돌려서 한쪽 팔을 비울 수도 있다.
@@ -29,6 +33,23 @@ namespace Bioframe.Assembly
         static readonly string[] BackCycle = { "DS-01", "DS-02", "DS-03", null };
         static readonly string[] TailCycle = { "TL-01", "TL-02", null };
         static readonly string[] SkinCycle = { "SK-01", "SK-02", null };
+
+        // 7번 키로 돌려가며 시험하는 봇 구성. 전술은 파츠를 보고 봇이 스스로 고른다.
+        class BotPreset
+        {
+            public string name, core;
+            public string[] parts;
+            public BotPreset(string n, string c, params string[] p) { name = n; core = c; parts = p; }
+        }
+
+        static readonly BotPreset[] BotPresets =
+        {
+            new BotPreset("돌격형", "INS", "LC-03", "FL-01", "HD-08"),
+            new BotPreset("원거리형", "INS", "LC-02", "FL-01", "DS-03", "HD-06"),
+            new BotPreset("벽타기형", "INS", "LC-01", "FL-01", "HD-06"),
+            new BotPreset("은신형", "INS", "LC-01", "FL-02", "SK-01"),
+            new BotPreset("중장갑형", "INS", "LC-01", "FL-03", "DS-01", "SK-02"),
+        };
 
         GameObject _frame;
         GameObject _bot;
@@ -44,8 +65,117 @@ namespace Bioframe.Assembly
         FrameStats _stats;
         List<AssemblyIssue> _issues = new List<AssemblyIssue>();
 
+        public FrameCombat PlayerCombat { get { return _combat; } }
+        public FrameController PlayerController { get { return _controller; } }
+        public Damageable PlayerHp { get { return _playerHp; } }
+        public Damageable BotHp { get { return _botHp; } }
+        public FrameStats PlayerStats { get { return _stats; } }
+        public string BotPresetName
+        {
+            get { return BotPresets[Mathf.Clamp(botPreset, 0, BotPresets.Length - 1)].name; }
+        }
+        public string BotTacticName { get { return _brain != null ? TacticName(_brain.Tactic) : ""; } }
+        public int BotPresetIndex { get { return botPreset; } }
+        public int BotPresetCount { get { return BotPresets.Length; } }
+
+        public string BotPresetNameAt(int i)
+        {
+            i = Mathf.Clamp(i, 0, BotPresets.Length - 1);
+            return BotPresets[i].name;
+        }
+
+        public string BotPresetPartsAt(int i)
+        {
+            i = Mathf.Clamp(i, 0, BotPresets.Length - 1);
+            var sb = new System.Text.StringBuilder();
+            foreach (var id in BotPresets[i].parts)
+            {
+                var p = PartDatabase.GetPart(id);
+                if (p == null) continue;
+                if (sb.Length > 0) sb.Append(" · ");
+                sb.Append(p.name);
+            }
+            return sb.ToString();
+        }
+
+        // 조립 화면에서 상대를 고를 때 쓴다
+        public void SetBotPreset(int index)
+        {
+            botPreset = Mathf.Clamp(index, 0, BotPresets.Length - 1);
+            var preset = BotPresets[botPreset];
+            botCoreId = preset.core;
+            botPartIds = new List<string>(preset.parts);
+            SpawnBot();
+            SaveBuild();
+        }
+
+        public static string PartsSummary(List<PartData> parts)
+        {
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < parts.Count; i++)
+            {
+                if (parts[i] == null) continue;
+                if (sb.Length > 0) sb.Append(" · ");
+                sb.Append(parts[i].name);
+            }
+            return sb.ToString();
+        }
+
+        const string SaveCore = "bioframe.core";
+        const string SaveParts = "bioframe.parts";
+        const string SaveBotCore = "bioframe.botcore";
+
+        // 씬을 다시 만들거나 Unity를 껐다 켜도 구성이 남도록 저장한다
+        public void SaveBuild()
+        {
+            PlayerPrefs.SetString(SaveCore, coreId);
+            PlayerPrefs.SetString(SaveParts, string.Join(",", partIds.ToArray()));
+            PlayerPrefs.SetString(SaveBotCore, botCoreId);
+            PlayerPrefs.SetInt("bioframe.botpreset", botPreset);
+            PlayerPrefs.Save();
+        }
+
+        void LoadBuild()
+        {
+            if (!PlayerPrefs.HasKey(SaveParts)) return;
+
+            string savedCore = PlayerPrefs.GetString(SaveCore, coreId);
+            if (PartDatabase.GetCore(savedCore) != null) coreId = savedCore;
+
+            string csv = PlayerPrefs.GetString(SaveParts, "");
+            var list = new List<string>();
+            foreach (var id in csv.Split(','))
+            {
+                string t = id.Trim();
+                if (t.Length > 0 && PartDatabase.GetPart(t) != null) list.Add(t);
+            }
+            if (list.Count > 0) partIds = list;
+
+            string savedBot = PlayerPrefs.GetString(SaveBotCore, botCoreId);
+            if (PartDatabase.GetCore(savedBot) != null) botCoreId = savedBot;
+
+            botPreset = Mathf.Clamp(PlayerPrefs.GetInt("bioframe.botpreset", botPreset), 0, BotPresets.Length - 1);
+            botCoreId = BotPresets[botPreset].core;
+            botPartIds = new List<string>(BotPresets[botPreset].parts);
+
+            Debug.Log("[BIOFRAME] 저장된 구성 불러옴: " + coreId + " / " + string.Join(", ", partIds.ToArray()));
+        }
+
+        // 처음 기본 구성으로 되돌린다
+        public void ResetBuild()
+        {
+            PlayerPrefs.DeleteKey(SaveCore);
+            PlayerPrefs.DeleteKey(SaveParts);
+            PlayerPrefs.DeleteKey(SaveBotCore);
+            coreId = "INS";
+            partIds = new List<string> { "LC-01", "FL-01", "FL-03", "HD-06" };
+            Respawn();
+        }
+
         void Start()
         {
+            PartDatabase.Load();
+            LoadBuild();
             _mode = startMode;
             if (cam != null) cam.SetMode(_mode == ControlMode.Direct ? CameraMode.Follow : CameraMode.TopDown);
             Spawn(transform.position + Vector3.up * 0.5f);
@@ -58,16 +188,17 @@ namespace Bioframe.Assembly
         void Update()
         {
             if (InputReader.ModeTogglePressed) ToggleMode();
+            if (InputReader.DetailTogglePressed) showHud = !showHud;
             if (InputReader.RespawnPressed) Spawn(transform.position + Vector3.up * 0.5f);
 
-            if (_playerHp != null && !_playerHp.Alive)
+            if (autoRespawn && _playerHp != null && !_playerHp.Alive)
             {
                 _playerRespawn -= Time.deltaTime;
                 if (_playerRespawn <= 0f) { _playerRespawn = respawnDelay; Spawn(transform.position + Vector3.up * 0.5f); }
             }
             else _playerRespawn = respawnDelay;
 
-            if (_botHp != null && !_botHp.Alive)
+            if (autoRespawn && _botHp != null && !_botHp.Alive)
             {
                 _botRespawn -= Time.deltaTime;
                 if (_botRespawn <= 0f) { _botRespawn = respawnDelay; SpawnBot(); if (_brain != null) _brain.enemy = _playerHp; }
@@ -81,7 +212,7 @@ namespace Bioframe.Assembly
             else if (n == 4) CycleArm(0);
             else if (n == 5) CycleArm(1);
             else if (n == 6) CycleHead();
-            else if (n == 7) { botCoreId = botCoreId == "QUA" ? "INS" : "QUA"; SpawnBot(); }
+            else if (n == 7) NextBotPreset();
             else if (n == 8) SpawnBot();
             else if (n == 10) CycleSocket("DS", BackCycle);
             else if (n == 11) CycleSocket("TL", TailCycle);
@@ -185,8 +316,9 @@ namespace Bioframe.Assembly
             Respawn();
         }
 
-        void Respawn()
+        public void Respawn()
         {
+            SaveBuild();
             Vector3 pos = _frame != null ? _frame.transform.position + Vector3.up * 0.3f : transform.position;
             Spawn(pos);
         }
@@ -229,6 +361,7 @@ namespace Bioframe.Assembly
             _playerHp.displayName = "내 기체";
             _playerHp.maxHp = _stats.hp;
             _playerHp.armor = _stats.armor;
+            _playerHp.subtitle = PartsSummary(_parts);
             _playerHp.survivesLethal = _stats.survivesLethal;
             _playerHp.knockbackResist = _stats.knockbackResist;
             _playerHp.ResetHp();
@@ -241,6 +374,29 @@ namespace Bioframe.Assembly
             if (cam != null) cam.target = _frame.transform;
 
             if (spawnBot && _bot == null) SpawnBot();
+            if (_brain != null) _brain.enemy = _playerHp;
+        }
+
+        void NextBotPreset()
+        {
+            SetBotPreset((botPreset + 1) % BotPresets.Length);
+            Debug.Log("[BIOFRAME] 봇 구성: " + BotPresetName);
+        }
+
+        // 카운트다운 동안에는 봇이 가만히 있게 한다
+        public void SetBotActive(bool active)
+        {
+            if (_brain != null) _brain.enabled = active;
+            if (_bot == null) return;
+            var ctrl = _bot.GetComponent<FrameController>();
+            if (ctrl != null && !active) ctrl.botWish = Vector3.zero;
+        }
+
+        // 라운드 시작: 양쪽을 처음 자리에 다시 세운다
+        public void ResetForRound()
+        {
+            Spawn(transform.position + Vector3.up * 0.5f);
+            SpawnBot();
             if (_brain != null) _brain.enemy = _playerHp;
         }
 
@@ -277,7 +433,9 @@ namespace Bioframe.Assembly
             }
 
             var stats = BuildStats.Compute(core, parts);
-            Vector3 spawnPos = transform.position + botOffset;
+            Vector3 dirOffset = botOffset.sqrMagnitude > 0.01f
+                                ? new Vector3(botOffset.x, 0f, botOffset.z).normalized : Vector3.forward;
+            Vector3 spawnPos = transform.position + dirOffset * botSpawnDistance + Vector3.up * 0.5f;
             RaycastHit ground;
             if (Physics.Raycast(spawnPos + Vector3.up * 12f, Vector3.down, out ground, 40f, ~0, QueryTriggerInteraction.Ignore))
                 spawnPos = ground.point + Vector3.up * 0.4f;
@@ -295,6 +453,7 @@ namespace Bioframe.Assembly
             _botHp.displayName = "적 기체 (" + core.name + ")";
             _botHp.maxHp = stats.hp;
             _botHp.armor = stats.armor;
+            _botHp.subtitle = PartsSummary(parts);
             _botHp.survivesLethal = stats.survivesLethal;
             _botHp.knockbackResist = stats.knockbackResist;
             _botHp.ResetHp();
@@ -315,6 +474,19 @@ namespace Bioframe.Assembly
 
             _brain = _bot.AddComponent<BotBrain>();
             _brain.enemy = _playerHp;
+            _botHp.displayName = "적 " + BotPresets[Mathf.Clamp(botPreset, 0, BotPresets.Length - 1)].name;
+        }
+
+        static string TacticName(BotTactic t)
+        {
+            switch (t)
+            {
+                case BotTactic.Ranged: return "거리 유지";
+                case BotTactic.Climber: return "벽 타기";
+                case BotTactic.Stealth: return "은신 기습";
+                case BotTactic.Turtle: return "자리 지킴";
+                default: return "근접 돌격";
+            }
         }
 
         static string StateName(Bioframe.Movement.SurfaceState s)
@@ -430,7 +602,8 @@ namespace Bioframe.Assembly
                               + (_combat.Cloaked ? "  <color=#14695F>투명</color>" : "") + "</color>");
             }
             sb.AppendLine("<color=#3C4A46>4 왼팔 · 5 오른팔 · 6 머리 · 0 등 · - 꼬리 · = 외피</color>");
-            sb.AppendLine("<color=#3C4A46>7 봇 코어 · 8 봇 재생성 · F5 처음 위치</color>");
+            sb.AppendLine("<color=#3C4A46>7 봇 구성 바꾸기 · 8 봇 재생성 · F5 처음 위치</color>");
+            sb.AppendLine("<b>Tab 조립 화면</b>");
             if (_combat != null)
                 sb.AppendLine((_combat.AimingHead ? "<color=#A8650F>Q 조준 중 — 대상 클릭: " : "<color=#3C4A46>Q 머리 파츠: ") + _combat.HeadName
                               + (_combat.HeadCooldown > 0f ? " (대기 " + _combat.HeadCooldown.ToString("0.0") + "s)" : "") + "</color>");

@@ -160,6 +160,8 @@ namespace Bioframe.Movement
                 if (k.digit4Key.wasPressedThisFrame) return 4;
                 if (k.digit5Key.wasPressedThisFrame) return 5;
                 if (k.digit6Key.wasPressedThisFrame) return 6;
+                if (k.digit7Key.wasPressedThisFrame) return 7;
+                if (k.digit8Key.wasPressedThisFrame) return 8;
                 if (k.digit9Key.wasPressedThisFrame) return 9;
                 if (k.digit0Key.wasPressedThisFrame) return 10;      // 등 파츠 교체
                 if (k.minusKey.wasPressedThisFrame) return 11;       // 꼬리 파츠 교체
@@ -172,6 +174,8 @@ namespace Bioframe.Movement
                 if (Input.GetKeyDown(KeyCode.Alpha4)) return 4;
                 if (Input.GetKeyDown(KeyCode.Alpha5)) return 5;
                 if (Input.GetKeyDown(KeyCode.Alpha6)) return 6;
+                if (Input.GetKeyDown(KeyCode.Alpha7)) return 7;
+                if (Input.GetKeyDown(KeyCode.Alpha8)) return 8;
                 if (Input.GetKeyDown(KeyCode.Alpha9)) return 9;
                 if (Input.GetKeyDown(KeyCode.Alpha0)) return 10;
                 if (Input.GetKeyDown(KeyCode.Minus)) return 11;
@@ -276,6 +280,48 @@ namespace Bioframe.Movement
                 return k != null && k.f5Key.wasPressedThisFrame;
 #else
                 return Input.GetKeyDown(KeyCode.F5);
+#endif
+            }
+        }
+
+        // Tab: 조립 화면 열기/닫기
+        public static bool AssemblyTogglePressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.tabKey.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.Tab);
+#endif
+            }
+        }
+
+        // F2: 자세한 정보 패널 접기/펴기
+        public static bool DetailTogglePressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && k.f2Key.wasPressedThisFrame;
+#else
+                return Input.GetKeyDown(KeyCode.F2);
+#endif
+            }
+        }
+
+        // Enter: 경기 다시 시작
+        public static bool RestartPressed
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM
+                var k = Keyboard.current;
+                return k != null && (k.enterKey.wasPressedThisFrame || k.numpadEnterKey.wasPressedThisFrame);
+#else
+                return Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter);
 #endif
             }
         }

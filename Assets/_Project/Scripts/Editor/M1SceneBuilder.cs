@@ -4,6 +4,7 @@ using UnityEngine;
 using Bioframe.Assembly;
 using Bioframe.Movement;
 using Bioframe.Combat;
+using Bioframe.UI;
 
 namespace Bioframe.EditorTools
 {
@@ -104,6 +105,20 @@ namespace Bioframe.EditorTools
             spawnerGo.transform.position = new Vector3(0f, 0.5f, 0f);
             var spawner = spawnerGo.AddComponent<FrameSpawner>();
             spawner.cam = cam;
+
+            var uiGo = new GameObject("UI");
+            var screen = uiGo.AddComponent<AssemblyScreen>();
+            screen.spawner = spawner;
+
+            var hud = uiGo.AddComponent<CombatHud>();
+            hud.spawner = spawner;
+            hud.assembly = screen;
+
+            var matchGo = new GameObject("MatchManager");
+            var match = matchGo.AddComponent<Bioframe.Match.MatchManager>();
+            match.spawner = spawner;
+            match.assembly = screen;
+            hud.match = match;
 
             var lightGo = GameObject.Find("Directional Light");
             if (lightGo != null)

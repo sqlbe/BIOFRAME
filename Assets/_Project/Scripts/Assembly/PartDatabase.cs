@@ -41,6 +41,7 @@ namespace Bioframe.Assembly
 
         public static CoreData GetCore(string id)
         {
+            if (string.IsNullOrEmpty(id)) return null;   // 비어 있는 칸을 조회해도 안전하게
             Load();
             CoreData c;
             return _cores.TryGetValue(id, out c) ? c : null;
@@ -48,6 +49,7 @@ namespace Bioframe.Assembly
 
         public static PartData GetPart(string id)
         {
+            if (string.IsNullOrEmpty(id)) return null;   // 비어 있는 소켓
             Load();
             PartData p;
             return _parts.TryGetValue(id, out p) ? p : null;

@@ -51,7 +51,20 @@ namespace Bioframe.Combat
         public bool HasTarget { get { return Target != null && Target.Alive; } }
         public Vector3 TargetPosition { get { return Target != null ? Target.transform.position : transform.position; } }
         public float AttackRange { get; private set; }
-        public string LastLog { get; private set; }
+        string _lastLog;
+        public readonly List<string> LogLines = new List<string>();
+
+        public string LastLog
+        {
+            get { return _lastLog; }
+            private set
+            {
+                if (string.IsNullOrEmpty(value) || value == _lastLog) { _lastLog = value; return; }
+                _lastLog = value;
+                LogLines.Add(value);
+                if (LogLines.Count > 6) LogLines.RemoveAt(0);
+            }
+        }
 
         public void Init(List<PartData> parts, FrameVisual visual, FrameStats stats, FrameController controller)
         {
@@ -166,6 +179,81 @@ namespace Bioframe.Combat
         {
             var w = SlotOf(socket);
             return w != null ? Mathf.Max(0f, w.cooldown) : 0f;
+        }
+
+        // 봇이 자기 구성을 읽을 때 쓰는 정보
+        public bool HasSlot(string socket) { return SlotOf(socket) != null; }
+
+        public string SlotAction(string socket)
+        {
+            var w = SlotOf(socket);
+            return (w != null && w.part.ability != null) ? w.part.ability.action : null;
+        }
+
+        public float SlotRange(string socket)
+        {
+            var w = SlotOf(socket);
+            return (w != null && w.part.ability != null) ? w.part.ability.range : 0f;
+        }
+
+        public bool HasCloak { get { return SlotAction("SK") == "CLOAK"; } }
+        public bool HasSpray { get { return SlotAction("DS") == "SPRAY"; } }
+
+        // 이 기체가 싸우고 싶어 하는 거리
+        public float PreferredRange
+        {
+            get
+            {
+                float r = AttackRange;
+                r = Mathf.Max(r, RangedSlotRange("HD"));
+                r = Mathf.Max(r, RangedSlotRange("DS"));
+                r = Mathf.Max(r, RangedSlotRange("TL"));
+                return r;
+            }
+        }
+
+        // 날아가는 무기만 원거리로 친다.
+        // 치타 송곳니처럼 사거리가 길어도 달려들어 쓰는 기술은 근접으로 본다.
+        float RangedSlotRange(string socket)
+        {
+            var w = SlotOf(socket);
+            if (w == null || w.part.ability == null) return 0f;
+            var a = w.part.ability;
+            bool ranged = a.projectileSpeed > 0f || a.action == "DRONE" || a.action == "WEB";
+            return ranged ? a.range : 0f;
+        }
+
+        // 봇이 조건을 확인한 뒤 파츠를 쓴다
+        public bool TryUseSlot(string socket)
+        {
+            var w = SlotOf(socket);
+            if (w == null || w.part.ability == null) return false;
+            var a = w.part.ability;
+
+            if (w.cooldown > 0f) return false;
+            if (_self != null && _self.Rooted) return false;
+            if (_controller != null && _controller.Energy < a.en) return false;
+
+            bool needsTarget = a.action != "SPRAY" && a.action != "CLOAK";
+            if (needsTarget)
+            {
+                if (!HasTarget) return false;
+                if (a.range > 0f && Vector3.Distance(transform.position, Target.transform.position) > a.range) return false;
+            }
+            return UseSlot(w);
+        }
+
+        // 화면에 기술 칸을 그릴 때 쓰는 정보
+        public PartData SlotPart(string socket)
+        {
+            var w = SlotOf(socket);
+            return w != null ? w.part : null;
+        }
+
+        public float SlotCooldownMax(string socket)
+        {
+            var w = SlotOf(socket);
+            return w != null && w.part.ability != null ? w.part.ability.cooldown : 0f;
         }
 
         public string HeadName { get { return _head != null ? _head.part.name : "없음"; } }

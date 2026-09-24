@@ -30,6 +30,9 @@ namespace Bioframe.Movement
         [HideInInspector] public Vector3 botWish;
         [HideInInspector] public bool botSprint;
         [HideInInspector] public bool botJump;
+        // 봇이 바라볼 지점. 비어 있으면 가는 방향을 본다.
+        [HideInInspector] public Vector3 botFace;
+        [HideInInspector] public bool botHasFace;
 
         SurfaceMotor _motor;
         Bioframe.Combat.Damageable _self;
@@ -243,7 +246,15 @@ namespace Bioframe.Movement
 
             _planar = Vector3.MoveTowards(_planar, wish * speed, accel * dt);
             _planar = Vector3.ProjectOnPlane(_planar, up);
-            if (_planar.sqrMagnitude > 0.05f) _motor.Facing = _planar.normalized;
+
+            // 싸울 때는 상대를 보고, 아니면 가는 방향을 본다.
+            // 둘을 한 프레임에 번갈아 쓰면 몸이 팽이처럼 돈다.
+            if (botHasFace)
+            {
+                Vector3 look = Vector3.ProjectOnPlane(botFace - transform.position, up);
+                if (look.sqrMagnitude > 0.01f) _motor.Facing = look.normalized;
+            }
+            else if (_planar.sqrMagnitude > 0.05f) _motor.Facing = _planar.normalized;
 
             if (botJump)
             {
