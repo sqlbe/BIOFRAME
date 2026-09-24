@@ -136,6 +136,7 @@ namespace Bioframe.Rules
     {
         public string id, name, socket, size, model;
         public string color;        // "#RRGGBB". 조립 화면과 실제 모델 색에 쓴다
+        public string shape;        // 절차적 형태 이름. 실사 모델이 들어오면 model 경로가 대신한다
         public float weight;
         public int cost;
         public TagData tags = new TagData();

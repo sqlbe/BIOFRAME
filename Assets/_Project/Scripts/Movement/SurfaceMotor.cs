@@ -32,6 +32,11 @@ namespace Bioframe.Movement
         [Header("파츠 능력")]
         public bool canWallClimb;
         public bool canCeiling;
+        // 벽을 타려는 의도. 스치기만 해도 붙으면 걷다가 벽을 타고 올라가 버린다.
+        public bool wantsClimb;
+
+        // 벽·천장 타기 전체 스위치. 문제를 잡을 때까지 꺼 둔다.
+        public static bool ClimbingEnabled = true;
 
         public Vector3 Up { get; private set; }
         public Vector3 SurfaceNormal { get; private set; }
@@ -78,6 +83,7 @@ namespace Bioframe.Movement
             if (Attached) transform.position += SurfaceNormal * 0.25f;
             State = SurfaceState.Air;
             SurfaceNormal = Vector3.up;
+            Up = Vector3.up;        // 벽 기준을 남겨 두면 허공에서 그 벽면을 따라 걸어 올라간다
             _fallSpeed = -upwardPush;
             _airTime = 0f;
             _detachTimer = 0.4f;
@@ -114,6 +120,7 @@ namespace Bioframe.Movement
         public void Jump(float speed)
         {
             if (!Grounded) return;
+            if (_detachTimer > 0f) return;   // 뛴 직후에는 다시 못 뛴다 (공중 연속 점프 방지)
             // 벽에서는 벽을 차고 나가면서 지면 중력으로 돌아간다
             if (Attached)
             {
@@ -125,8 +132,10 @@ namespace Bioframe.Movement
             {
                 _fallSpeed = -speed;
                 State = SurfaceState.Air;
-                // 뛴 직후 바닥 감지가 다시 달라붙어 점프를 지워버리지 않게 잠깐 멈춘다
-                _detachTimer = 0.18f;
+                Up = Vector3.up;
+                // 뛴 직후에는 바닥에도 벽에도 붙지 않는다.
+                // 그러지 않으면 점프하자마자 옆 벽에 붙어 계속 타고 올라간다.
+                _detachTimer = 0.35f;
             }
         }
 
@@ -136,6 +145,10 @@ namespace Bioframe.Movement
             if (dt <= 0f) return;
             if (RecoverIfFallen()) return;
             if (_lastSafe == Vector3.zero) _lastSafe = transform.position;
+
+            // 공중에서는 언제나 세계 기준으로 계산한다.
+            // 벽에 붙었던 기준을 남겨 두면 허공에서 이동 입력이 위로 올라가는 힘이 된다.
+            if (State == SurfaceState.Air) Up = Vector3.up;
 
             Vector3 up = Up;
             planarVelocity = Vector3.ProjectOnPlane(planarVelocity, up);
@@ -183,6 +196,7 @@ namespace Bioframe.Movement
                 _airTime += dt;
                 if (_airTime > 0.12f)
                 {
+                    if (State != SurfaceState.Air) Up = Vector3.up;   // 표면에서 떨어지면 곧바로 바로 선다
                     State = SurfaceState.Air;
                     SurfaceNormal = Vector3.up;
                 }
@@ -207,7 +221,10 @@ namespace Bioframe.Movement
                 }
             }
 
-            Vector3 motion = planarVelocity * dt - up * (_fallSpeed * dt);
+            // 공중에서는 중력이 언제나 세계 기준 아래로 작용해야 한다.
+            // 벽에 붙었던 방향을 그대로 쓰면, 벽 꼭대기를 넘어갔을 때 옆으로 밀려 다시 붙는다.
+            Vector3 gravityUp = State == SurfaceState.Air ? Vector3.up : up;
+            Vector3 motion = planarVelocity * dt - gravityUp * (_fallSpeed * dt);
             CollideAndSlide(ref motion, up);
             transform.position += motion;
 
@@ -272,10 +289,18 @@ namespace Bioframe.Movement
             transform.rotation = Quaternion.LookRotation(fwd, Up);
         }
 
+        // 다른 기체나 허수아비는 벽이 아니다. 몸통을 타고 올라가면 안 된다.
+        static bool IsCharacter(Transform t)
+        {
+            return t != null && t.GetComponentInParent<Bioframe.Combat.Damageable>() != null;
+        }
+
         bool CanAttachTo(Vector3 normal)
         {
             float a = Vector3.Angle(normal, Vector3.up);
-            if (a <= maxGroundAngle) return true;
+            if (a <= maxGroundAngle) return true;      // 걸어 올라갈 수 있는 경사면
+            if (!ClimbingEnabled) return false;        // 벽·천장 타기가 꺼져 있으면 벽은 그냥 막힌 벽
+            if (!wantsClimb) return false;
             if (a < 120f) return canWallClimb;
             return canCeiling;
         }
@@ -285,18 +310,30 @@ namespace Bioframe.Movement
         {
             Vector3 center = transform.position + Vector3.up * (height * 0.5f);
             float dist = (height * 0.5f - radius) + snapDistance + extra;
-            if (Physics.SphereCast(center, radius - skin, Vector3.down, out hit, dist, mask, QueryTriggerInteraction.Ignore))
-                return !hit.transform.IsChildOf(transform);
-            return false;
+            return CastSurface(center, Vector3.down, dist, out hit);
         }
 
         bool Probe(Vector3 up, out RaycastHit hit)
         {
             Vector3 center = transform.position + up * (height * 0.5f);
             float dist = (height * 0.5f - radius) + snapDistance;
-            if (Physics.SphereCast(center, radius - skin, -up, out hit, dist, mask, QueryTriggerInteraction.Ignore))
-                return !hit.transform.IsChildOf(transform);
-            return false;
+            return CastSurface(center, -up, dist, out hit);
+        }
+
+        // 지형만 찾는다. 자기 몸과 다른 기체는 건너뛴다.
+        bool CastSurface(Vector3 center, Vector3 dir, float dist, out RaycastHit best)
+        {
+            best = new RaycastHit();
+            var hits = Physics.SphereCastAll(center, radius - skin, dir, dist, mask, QueryTriggerInteraction.Ignore);
+            float min = float.MaxValue;
+            bool found = false;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                if (hits[i].transform.IsChildOf(transform)) continue;
+                if (IsCharacter(hits[i].transform)) continue;
+                if (hits[i].distance < min) { min = hits[i].distance; best = hits[i]; found = true; }
+            }
+            return found;
         }
 
         void CollideAndSlide(ref Vector3 motion, Vector3 up)
@@ -317,7 +354,7 @@ namespace Bioframe.Movement
                 Vector3 remaining = motion - moved;
 
                 // 벽 타기 후보로 기억해 둔다
-                if (Vector3.Angle(hit.normal, Vector3.up) > maxGroundAngle)
+                if (Vector3.Angle(hit.normal, Vector3.up) > maxGroundAngle && !IsCharacter(hit.transform))
                 {
                     _pendingNormal = hit.normal;
                     _hasPending = true;

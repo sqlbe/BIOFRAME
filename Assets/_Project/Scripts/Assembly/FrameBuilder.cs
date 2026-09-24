@@ -66,7 +66,11 @@ namespace Bioframe.Assembly
                 string node = flIndex == 0 ? "mount_FL_L" : "mount_FL_R";
                 var socket = visual.GetSocket(node);
                 if (socket == null) continue;
-                var attached = AttachBoxPart(p, socket, flIndex == 0 ? -1f : 1f, PartColorOf(p));
+                float side = flIndex == 0 ? -1f : 1f;
+                float scale = 0.9f + 0.2f * SizeGrade.Of(p.size);
+                var attached = PartShapes.Create(p, socket, PartColorOf(p), side, scale);
+                attached.transform.localPosition = new Vector3(side * 0.12f, 0f, 0.1f);
+                attached.transform.localRotation = Quaternion.Euler(-14f, side * 10f, 0f);
                 visual.attachedParts[node] = attached.transform;
                 flIndex++;
                 if (flIndex > 1) break;
@@ -79,9 +83,9 @@ namespace Bioframe.Assembly
                 if (hp == null || hp.socket != "HD") continue;
                 var hs = visual.GetSocket("mount_HD_0");
                 if (hs == null) break;
-                float hscale = 0.8f + 0.2f * SizeGrade.Of(hp.size);
-                var hgo = MakeBox(hs, hp.id, new Vector3(0f, 0f, 0.2f),
-                                  new Vector3(0.3f, 0.26f, 0.5f) * hscale, PartColorOf(hp));
+                float hscale = 0.85f + 0.2f * SizeGrade.Of(hp.size);
+                var hgo = PartShapes.Create(hp, hs, PartColorOf(hp), 1f, hscale);
+                hgo.transform.localPosition = new Vector3(0f, 0f, 0.05f);
                 visual.attachedParts["mount_HD_0"] = hgo.transform;
                 break;
             }
@@ -101,11 +105,14 @@ namespace Bioframe.Assembly
         {
             v.bodyHeight = 1.05f;
             v.bodyLength = 1.9f;
-            v.hipSpread = 0.58f;
+            v.hipSpread = 0.30f;
 
-            MakeBox(body, "Head", new Vector3(0f, v.bodyHeight, 1.15f), new Vector3(0.5f, 0.4f, 0.6f), HeadColor);
-            MakeBox(body, "Thorax", new Vector3(0f, v.bodyHeight, 0.35f), new Vector3(0.8f, 0.55f, 1.0f), CoreColor);
-            MakeBox(body, "Abdomen", new Vector3(0f, v.bodyHeight + 0.05f, -0.85f), new Vector3(0.9f, 0.65f, 1.3f), CoreColor);
+            PartShapes.Piece(body, ProcMesh.Ellipsoid(new Vector3(0.26f, 0.20f, 0.30f), 12), HeadColor,
+                             new Vector3(0f, v.bodyHeight, 1.15f), Quaternion.identity);
+            PartShapes.Piece(body, ProcMesh.Ellipsoid(new Vector3(0.40f, 0.28f, 0.52f), 14, 0.35f), CoreColor,
+                             new Vector3(0f, v.bodyHeight, 0.35f), Quaternion.identity);
+            PartShapes.Piece(body, ProcMesh.Ellipsoid(new Vector3(0.45f, 0.33f, 0.68f), 14, 0.3f), CoreColor,
+                             new Vector3(0f, v.bodyHeight + 0.05f, -0.85f), Quaternion.identity);
 
             AddSocket(v, body, "mount_HD_0", new Vector3(0f, v.bodyHeight + 0.15f, 1.45f));
             AddSocket(v, body, "mount_FL_L", new Vector3(-0.45f, v.bodyHeight + 0.05f, 0.7f));
@@ -119,11 +126,14 @@ namespace Bioframe.Assembly
         {
             v.bodyHeight = 1.25f;
             v.bodyLength = 2.1f;
-            v.hipSpread = 0.5f;
+            v.hipSpread = 0.28f;
 
-            MakeBox(body, "Head", new Vector3(0f, v.bodyHeight + 0.15f, 1.35f), new Vector3(0.45f, 0.45f, 0.7f), HeadColor);
-            MakeBox(body, "Neck", new Vector3(0f, v.bodyHeight + 0.1f, 0.95f), new Vector3(0.35f, 0.35f, 0.5f), CoreColor);
-            MakeBox(body, "Torso", new Vector3(0f, v.bodyHeight, -0.1f), new Vector3(0.85f, 0.7f, 1.9f), CoreColor);
+            PartShapes.Piece(body, ProcMesh.Ellipsoid(new Vector3(0.24f, 0.22f, 0.34f), 12), HeadColor,
+                             new Vector3(0f, v.bodyHeight + 0.15f, 1.35f), Quaternion.identity);
+            PartShapes.Piece(body, ProcMesh.Tube(8, 4, 0.5f, 0.16f, 0.20f), CoreColor,
+                             new Vector3(0f, v.bodyHeight + 0.1f, 0.75f), Quaternion.Euler(0f, 180f, 0f));
+            PartShapes.Piece(body, ProcMesh.Ellipsoid(new Vector3(0.42f, 0.35f, 0.95f), 14, 0.3f), CoreColor,
+                             new Vector3(0f, v.bodyHeight, -0.1f), Quaternion.identity);
 
             AddSocket(v, body, "mount_HD_0", new Vector3(0f, v.bodyHeight + 0.4f, 1.55f));
             AddSocket(v, body, "mount_DS_0", new Vector3(0f, v.bodyHeight + 0.4f, 0.4f));
@@ -141,8 +151,10 @@ namespace Bioframe.Assembly
                 if (p == null || p.socket != socket) continue;
                 var s = visual.GetSocket(node);
                 if (s == null) return;
-                float scale = 0.85f + 0.2f * SizeGrade.Of(p.size);
-                var go = MakeBox(s, p.id, offset, size * scale, PartColorOf(p));
+                float scale = 0.9f + 0.25f * SizeGrade.Of(p.size);
+                var go = PartShapes.Create(p, s, PartColorOf(p), 1f, scale);
+                go.transform.localPosition = offset;
+                if (socket == "TL") go.transform.localRotation = Quaternion.Euler(8f, 180f, 0f);
                 visual.attachedParts[node] = go.transform;
                 return;
             }
@@ -180,11 +192,8 @@ namespace Bioframe.Assembly
             go.transform.localScale = size;
 
             var col = go.GetComponent<Collider>();
-            if (col != null)
-            {
-                if (Application.isPlaying) Object.Destroy(col);   // 몸통 충돌은 CharacterController가 담당
-                else Object.DestroyImmediate(col);
-            }
+            // 콜라이더가 한 프레임이라도 남으면 이동 처리가 그것을 지형으로 보고 밀어낸다
+            if (col != null) Object.DestroyImmediate(col);
 
             SetColor(go, color);
             return go;

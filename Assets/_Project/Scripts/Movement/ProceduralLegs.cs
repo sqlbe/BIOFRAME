@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using Bioframe.Assembly;
 
 namespace Bioframe.Movement
 {
@@ -18,8 +19,8 @@ namespace Bioframe.Movement
         public float stepDuration = 0.16f;
         public float stepHeight = 0.32f;
         public float strideAhead = 0.35f;   // 진행 방향으로 발을 미리 내딛는 정도
-        public float legReach = 1.5f;
-        public float stanceOutward = 0.75f;   // 다리를 몸통 바깥으로 벌리는 정도
+        public float legReach = 1.3f;
+        public float stanceOutward = 0.55f;   // 다리를 몸통 바깥으로 벌리는 정도
         public float bodyFollowSpeed = 8f;
 
         [Header("모양")]
@@ -35,7 +36,7 @@ namespace Bioframe.Movement
             public Vector3 stepFrom, stepTo;
             public float t = 1f;
             public bool stepping;
-            public LineRenderer lr;
+            public Transform upper, lower;   // 넓적다리, 종아리
         }
 
         readonly List<Leg> _legs = new List<Leg>();
@@ -44,7 +45,7 @@ namespace Bioframe.Movement
         Vector3 _velocity;
         float _bodyY;
         int _steppingGroup = -1;
-        Material _legMaterial;
+        Mesh _segmentMesh;
 
         public void Setup(int legs, Transform body, float height, float length, float spread, Color? color = null)
         {
@@ -67,16 +68,11 @@ namespace Bioframe.Movement
         void Rebuild()
         {
             foreach (var l in _legs)
-                if (l.lr != null) Destroy(l.lr.gameObject);
+                if (l.upper != null && l.upper.parent != null) Destroy(l.upper.parent.gameObject);
             _legs.Clear();
 
-            if (_legMaterial == null)
-            {
-                var sh = Shader.Find("Universal Render Pipeline/Unlit");
-                if (sh == null) sh = Shader.Find("Sprites/Default");
-                _legMaterial = new Material(sh);
-                _legMaterial.color = legColor;
-            }
+            // 길이 1짜리 마디를 하나 만들어 두고, 크기만 바꿔 재사용한다
+            if (_segmentMesh == null) _segmentMesh = ProcMesh.Tube(7, 4, 1f, 1f, 0.55f);
 
             int rows = Mathf.CeilToInt(legCount / 2f);
             float front = bodyLength * 0.32f;
@@ -90,21 +86,16 @@ namespace Bioframe.Movement
 
                 var leg = new Leg();
                 leg.side = side;
-                leg.hipLocal = new Vector3(side * hipSpread, bodyHeight * 0.55f, z);
+                // 몸통 안쪽에서 다리가 뻗어 나오게 한다
+                leg.hipLocal = new Vector3(side * hipSpread, bodyHeight - 0.10f, z);
                 leg.group = (row + (side > 0f ? 1 : 0)) % 2;   // 대각선끼리 함께 움직인다
                 leg.foot = transform.TransformPoint(new Vector3(side * (hipSpread + stanceOutward), 0f, z));
 
                 var go = new GameObject("Leg_" + i);
                 go.transform.SetParent(transform, false);
-                var lr = go.AddComponent<LineRenderer>();
-                lr.useWorldSpace = true;
-                lr.positionCount = 3;
-                lr.startWidth = legWidth;
-                lr.endWidth = legWidth * 0.6f;
-                lr.numCapVertices = 3;
-                lr.sharedMaterial = _legMaterial;
-                lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                leg.lr = lr;
+                leg.upper = PartShapes.Piece(go.transform, _segmentMesh, legColor, Vector3.zero, Quaternion.identity).transform;
+                leg.lower = PartShapes.Piece(go.transform, _segmentMesh, Color.Lerp(legColor, Color.black, 0.15f),
+                                             Vector3.zero, Quaternion.identity).transform;
 
                 _legs.Add(leg);
             }
@@ -130,6 +121,10 @@ namespace Bioframe.Movement
             for (int i = 0; i < _legs.Count; i++)
             {
                 var leg = _legs[i];
+                // 몸통이 위아래로 흔들리면 다리 시작점도 같이 움직여야 한다
+                // 다리 시작점은 항상 기체 기준이다.
+                // 몸통(위아래로 흔들리는 부분) 기준으로 잡으면
+                // 몸통이 올라감 → 발도 올라감 → 몸통이 더 올라감 으로 끝없이 떠오른다.
                 Vector3 hip = transform.TransformPoint(leg.hipLocal);
                 Vector3 outward = transform.right * (leg.side * stanceOutward);
                 Vector3 desired = GroundPoint(hip + outward + _velocity.normalized * ahead + transform.up * 0.2f);
@@ -183,6 +178,7 @@ namespace Bioframe.Movement
             if (_body != null)
             {
                 float targetY = grounded > 0 ? footSum / grounded : 0f;
+                targetY = Mathf.Clamp(targetY, -0.25f, 0.25f);   // 흔들림일 뿐, 몸을 띄우는 값이 아니다
                 _bodyY = Mathf.Lerp(_bodyY, targetY, 1f - Mathf.Exp(-bodyFollowSpeed * dt));
                 var lp = _body.localPosition;
                 lp.y = _bodyY;
@@ -212,6 +208,8 @@ namespace Bioframe.Movement
 
         void DrawLeg(Leg leg, Vector3 hip)
         {
+            if (leg.upper == null || leg.lower == null) return;
+
             Vector3 dir = leg.foot - hip;
             float d = dir.magnitude;
             float seg = Mathf.Max(legReach * 0.5f, d * 0.52f);
@@ -224,9 +222,20 @@ namespace Bioframe.Movement
 
             Vector3 knee = hip + dir * 0.5f + axis * h;
 
-            leg.lr.SetPosition(0, hip);
-            leg.lr.SetPosition(1, knee);
-            leg.lr.SetPosition(2, leg.foot);
+            PlaceSegment(leg.upper, hip, knee, legWidth * 1.25f);
+            PlaceSegment(leg.lower, knee, leg.foot, legWidth * 0.95f);
+        }
+
+        // 길이 1짜리 마디를 두 점 사이에 맞춰 늘인다
+        void PlaceSegment(Transform seg, Vector3 from, Vector3 to, float thickness)
+        {
+            Vector3 delta = to - from;
+            float len = delta.magnitude;
+            if (len < 0.001f) return;
+
+            seg.position = from;
+            seg.rotation = Quaternion.LookRotation(delta / len, transform.up);
+            seg.localScale = new Vector3(thickness, thickness, len);
         }
     }
 }

@@ -129,12 +129,21 @@ namespace Bioframe.Combat
             UseAbilities(dist);
             TryEscape(dir, dist);
 
-            // 상대가 위에 있으면 뛴다
+            // 벽 타기 전술이고 상대가 멀 때만 벽에 붙으려 한다
+            _ctrl.botWantsClimb = Tactic == BotTactic.Climber
+                                  && dist > Mathf.Max(2.2f, _combat.AttackRange) * 2.5f;
+
+            // 내 도약으로 닿을 만한 높이일 때만 뛴다.
+            // 닿지도 않는 높이에 계속 뛰어오르면 날아다니는 것처럼 보인다.
             float heightGap = Vector3.Dot(enemy.transform.position - transform.position, up);
-            if (heightGap > 1.2f && dist < 10f && _jumpCooldown <= 0f && _motor.Grounded && !_motor.Attached)
+            float jumpHeight = _ctrl.Stats.jumpHeight;
+            bool reachable = heightGap > 0.8f && heightGap < jumpHeight * 0.85f;
+
+            if (reachable && dist < 4f && _jumpCooldown <= 0f && _motor.Grounded && !_motor.Attached
+                && Tactic != BotTactic.Ranged && Tactic != BotTactic.Turtle)
             {
                 _ctrl.botJump = true;
-                _jumpCooldown = 2f;
+                _jumpCooldown = 3f;
             }
         }
 

@@ -33,6 +33,7 @@ namespace Bioframe.Movement
         // 봇이 바라볼 지점. 비어 있으면 가는 방향을 본다.
         [HideInInspector] public Vector3 botFace;
         [HideInInspector] public bool botHasFace;
+        [HideInInspector] public bool botWantsClimb;
 
         SurfaceMotor _motor;
         Bioframe.Combat.Damageable _self;
@@ -150,6 +151,11 @@ namespace Bioframe.Movement
 
             if (_lock > 0f || Rooted) wish = Vector3.zero;
 
+            // 벽면이나 높은 곳을 클릭했을 때만 벽에 붙는다. 이미 붙어 있으면 유지한다.
+            // 점프 키를 의도로 쓰면, 점프할 때마다 벽에 붙어서 계속 타고 올라가 버린다.
+            bool aimingUp = _hasDestination && (_destination.y - transform.position.y) > 1.2f;
+            _motor.wantsClimb = aimingUp || _motor.Attached;
+
             bool moving = wish.sqrMagnitude > 0.01f;
             bool wantSprint = InputReader.Sprint && moving && !_motor.Attached;
             _sprinting = wantSprint && (_stats.sprintUpkeep <= 0f || _en > 0.5f);
@@ -233,6 +239,7 @@ namespace Bioframe.Movement
             Vector3 wish = Vector3.ProjectOnPlane(botWish, up);
             if (wish.sqrMagnitude > 1f) wish.Normalize();
             if (_lock > 0f || Rooted) wish = Vector3.zero;
+            _motor.wantsClimb = botWantsClimb || _motor.Attached;
 
             bool moving = wish.sqrMagnitude > 0.01f;
             _sprinting = botSprint && moving && !_motor.Attached
@@ -342,7 +349,7 @@ namespace Bioframe.Movement
                 var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 go.name = "MoveMarker";
                 var col = go.GetComponent<Collider>();
-                if (col != null) Destroy(col);
+                if (col != null) DestroyImmediate(col);
                 go.transform.localScale = new Vector3(0.6f, 0.03f, 0.6f);
                 var mr = go.GetComponent<MeshRenderer>();
                 if (mr != null)

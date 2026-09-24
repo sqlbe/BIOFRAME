@@ -84,6 +84,32 @@ namespace Bioframe.Combat
             if (t != null) t.Clear();
         }
 
+        // 효과 조각은 절대 충돌 몸체를 가지면 안 된다.
+        // CreatePrimitive로 만들면 콜라이더가 딸려 오고, 지우기 전까지 한 프레임 동안
+        // 캐릭터를 밀어내서 떠오르게 만든다.
+        static Mesh _cubeMesh;
+        public static Mesh CubeMesh()
+        {
+            if (_cubeMesh == null)
+            {
+                var temp = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                _cubeMesh = temp.GetComponent<MeshFilter>().sharedMesh;
+                if (Application.isPlaying) Object.Destroy(temp); else Object.DestroyImmediate(temp);
+            }
+            return _cubeMesh;
+        }
+
+        public static GameObject Bit(Transform parent, Material mat)
+        {
+            var go = new GameObject("bit");
+            go.transform.SetParent(parent, false);
+            go.AddComponent<MeshFilter>().sharedMesh = CubeMesh();
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = mat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            return go;
+        }
+
         public static void Shake(float amplitude, float duration)
         {
             var cam = Camera.main;
@@ -219,15 +245,10 @@ namespace Bioframe.Combat
             var mat = Fx.UnlitMaterial(color);
             for (int i = 0; i < count; i++)
             {
-                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                var col = cube.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-                cube.transform.SetParent(transform, false);
+                var cube = Fx.Bit(transform, mat);
                 cube.transform.localPosition = Random.insideUnitSphere * 0.25f;
                 cube.transform.localScale = Vector3.one * Random.Range(0.12f, 0.26f);
                 cube.transform.localRotation = Random.rotation;
-                var mr = cube.GetComponent<MeshRenderer>();
-                if (mr != null) mr.sharedMaterial = mat;
 
                 var p = new Puff();
                 p.t = cube.transform;
@@ -312,14 +333,9 @@ namespace Bioframe.Combat
             var mat = Fx.UnlitMaterial(color);
             for (int i = 0; i < count; i++)
             {
-                var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                var col = cube.GetComponent<Collider>();
-                if (col != null) Destroy(col);
-                cube.transform.SetParent(transform, false);
+                var cube = Fx.Bit(transform, mat);
                 cube.transform.localScale = Vector3.one * Random.Range(0.06f, 0.16f);
                 cube.transform.localRotation = Random.rotation;
-                var mr = cube.GetComponent<MeshRenderer>();
-                if (mr != null) mr.sharedMaterial = mat;
 
                 var b = new Bit();
                 b.t = cube.transform;
